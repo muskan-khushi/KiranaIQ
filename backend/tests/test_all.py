@@ -237,10 +237,25 @@ class TestLoanSizer:
         assert result["max_loan"] % 5000 == 0
 
     def test_emi_less_than_foir_income(self):
-        income_low = 30000
-        result = self.sizer.size((income_low, 45000))
-        max_emi = income_low * result["foir_used"]
-        assert result["monthly_emi_range"][1] <= max_emi * 1.1  # 10% tolerance
+        """
+        EMI range is derived from (income_low, income_high) × FOIR.
+        emi_range[0] must not exceed income_low × FOIR (+ 10% tolerance).
+        emi_range[1] must not exceed income_high × FOIR (+ 10% tolerance).
+        The original test incorrectly compared emi_range[1] against income_low × FOIR.
+        """
+        income_low, income_high = 30000, 45000
+        result = self.sizer.size((income_low, income_high))
+        foir = result["foir_used"]
+
+        max_emi_low  = income_low  * foir
+        max_emi_high = income_high * foir
+
+        assert result["monthly_emi_range"][0] <= max_emi_low  * 1.1, (
+            f"emi_low {result['monthly_emi_range'][0]} > {max_emi_low * 1.1}"
+        )
+        assert result["monthly_emi_range"][1] <= max_emi_high * 1.1, (
+            f"emi_high {result['monthly_emi_range'][1]} > {max_emi_high * 1.1}"
+        )
 
 
 class TestFeatureAttributor:

@@ -213,11 +213,13 @@ kiranaiq/
 
 ## Quick Start
 
-### Prerequisites
+### Option A — Docker (Recommended, zero local setup)
+
+#### Prerequisites
 - Docker & Docker Compose
 - A [Groq API key](https://console.groq.com) (free tier sufficient)
 
-### 1. Clone & Configure
+#### 1. Clone & Configure
 
 ```bash
 git clone https://github.com/your-org/kiranaiq.git
@@ -233,7 +235,7 @@ MONGO_URI=mongodb://mongo:27017/kiranaiq
 REDIS_URL=redis://redis:6379/0
 ```
 
-### 2. Start the Stack
+#### 2. Start the Stack
 
 ```bash
 docker-compose up --build
@@ -241,7 +243,7 @@ docker-compose up --build
 
 This starts: FastAPI backend (port 8000), Celery worker (2 concurrent), MongoDB 7, Redis 7.
 
-### 3. Seed Demo Data
+#### 3. Seed Demo Data
 
 ```bash
 docker-compose exec backend python scripts/seed_demo.py
@@ -249,25 +251,137 @@ docker-compose exec backend python scripts/seed_demo.py
 
 Creates a demo NBFC officer account and a completed assessment with realistic mock results.
 
-### 4. Explore the API
+#### 4. Explore the API
 
 Open [http://localhost:8000/docs](http://localhost:8000/docs) — Swagger UI with all endpoints.
 
-```bash
-# Login
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "demo@kiranaiq.in", "password": "demo1234"}'
+---
 
-# Submit assessment (3–5 images required)
-curl -X POST http://localhost:8000/api/v1/assess/ \
-  -H "Authorization: Bearer <token>" \
-  -F "images=@shop_front.jpg" \
-  -F "images=@shelf_1.jpg" \
-  -F "images=@counter.jpg" \
-  -F "lat=28.6562" \
-  -F "lng=77.2310"
+### Option B — Local Development (No Docker)
+
+Run each service natively. Best for fast iteration without Docker overhead.
+
+#### Prerequisites
+
+- Python 3.11+
+- MongoDB 7 running locally — [Install guide](https://www.mongodb.com/docs/manual/installation/)
+- Redis 7 running locally — [Install guide](https://redis.io/docs/install/) (on Windows use [Memurai](https://www.memurai.com/) or WSL)
+- A [Groq API key](https://console.groq.com)
+
+#### 1. Clone the repo
+
+```bash
+git clone https://github.com/your-org/kiranaiq.git
+cd kiranaiq
 ```
+
+#### 2. Create & activate a virtual environment
+
+```bash
+cd backend
+python -m venv venv
+
+# macOS / Linux
+source venv/bin/activate
+
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
+```
+
+#### 3. Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `backend/.env` — at minimum set these three:
+
+```env
+GROQ_API_KEY=gsk_your_key_here
+JWT_SECRET=any-long-random-string-minimum-32-chars
+MONGO_URI=mongodb://localhost:27017/kiranaiq
+REDIS_URL=redis://localhost:6379/0
+STORAGE_BACKEND=local
+LOCAL_UPLOAD_DIR=./uploads
+```
+
+#### 5. Start MongoDB and Redis
+
+```bash
+# macOS (Homebrew)
+brew services start mongodb-community
+brew services start redis
+
+# Ubuntu / Debian
+sudo systemctl start mongod
+sudo systemctl start redis-server
+
+# Windows — start Memurai (Redis) and MongoDB as Windows services,
+# or run them in WSL2
+```
+
+#### 6. Start the FastAPI backend
+
+From the `backend/` directory, with the virtual environment active:
+
+```bash
+# Add ai_pipeline to the Python path (needed because it lives outside backend/)
+export PYTHONPATH="$(pwd)/..:$(pwd)"   # macOS/Linux
+# OR on Windows PowerShell:
+# $env:PYTHONPATH = "..\;."
+
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+API docs will be at [http://localhost:8000/docs](http://localhost:8000/docs).
+
+#### 7. Start the Celery worker (separate terminal)
+
+```bash
+cd backend
+source venv/bin/activate          # or venv\Scripts\Activate.ps1 on Windows
+
+export PYTHONPATH="$(pwd)/..:$(pwd)"
+celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+```
+
+> **Windows note:** Celery's default prefork pool does not work on Windows. Use the `solo` pool instead:
+> ```powershell
+> celery -A app.tasks.celery_app worker --loglevel=info --pool=solo
+> ```
+
+#### 8. Seed demo data
+
+```bash
+cd backend
+python scripts/seed_demo.py
+```
+
+#### 9. Verify everything is working
+
+```bash
+# Health check
+curl http://localhost:8000/health
+# → {"status": "ok", "service": "KiranaIQ API"}
+
+# Run the full test suite (no network or DB required for unit tests)
+pytest tests/test_all.py -v -s
+```
+
+#### Local dev quick-reference
+
+| Service | Command | Port |
+|---------|---------|------|
+| FastAPI | `uvicorn app.main:app --reload` | 8000 |
+| Celery worker | `celery -A app.tasks.celery_app worker` | — |
+| MongoDB | `mongod` / brew/systemctl | 27017 |
+| Redis | `redis-server` / brew/systemctl | 6379 |
 
 ---
 
