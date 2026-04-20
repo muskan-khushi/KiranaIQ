@@ -1,0 +1,50 @@
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+
+# ── Virtual Environments ──────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Environment Variables (NEVER commit these) ────────────────
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ── Uploads / Local Storage ───────────────────────────────────
+backend/uploads/
+uploads/
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Testing ───────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ── Docker ───────────────────────────────────────────────────
+*.log
+
+# ── Node (for frontend later) ─────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
