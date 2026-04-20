@@ -1,4 +1,5 @@
 import { useState } from 'react';
+// @ts-ignore
 import Map, { Marker, NavigationControl } from 'react-map-gl';
 import { MapPin, Store } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
