@@ -3,16 +3,25 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import settings
+import hashlib
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _prep(password: str) -> str:
+    """
+    bcrypt has a hard 72-byte limit. SHA-256 the password first so
+    any length password is safely handled. Standard pattern (used by Django).
+    """
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(_prep(password))
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return pwd_context.verify(_prep(plain), hashed)
 
 
 def create_access_token(user_id: str, email: str) -> str:
