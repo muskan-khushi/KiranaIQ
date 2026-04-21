@@ -75,7 +75,7 @@ class FootfallScorer:
 out body;"""
 
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=15, headers={"User-Agent": "KiranaIQ/1.0"}) as client:
                 resp = await client.post(OVERPASS_URL, data={"data": query})
                 data = resp.json()
         except Exception as e:

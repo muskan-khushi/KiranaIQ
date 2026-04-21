@@ -14,7 +14,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../backend"))
 
-GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview"
+GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 SYSTEM_PROMPT = """You are a retail shelf analyst specialising in Indian kirana (corner grocery) stores.
 Analyse the provided store image and return ONLY a valid JSON object — no prose, no markdown fences.
@@ -75,11 +75,18 @@ async def analyze_image_url(url: str) -> dict:
         import httpx
         from ai_pipeline.vision.image_preprocessor import ImagePreprocessor
 
-        async with httpx.AsyncClient(timeout=15) as http:
-            img_resp = await http.get(url)
-            img_resp.raise_for_status()
-            raw_bytes = img_resp.content
-            content_type = img_resp.headers.get("content-type", "image/jpeg").split(";")[0]
+        if url.startswith("/uploads"):
+            import aiofiles
+            file_path = os.path.join("/app", url.lstrip("/"))
+            async with aiofiles.open(file_path, "rb") as f:
+                raw_bytes = await f.read()
+            content_type = "image/jpeg"
+        else:
+            async with httpx.AsyncClient(timeout=15) as http:
+                img_resp = await http.get(url)
+                img_resp.raise_for_status()
+                raw_bytes = img_resp.content
+                content_type = img_resp.headers.get("content-type", "image/jpeg").split(";")[0]
 
         # Preprocess for better quality
         preprocessor = ImagePreprocessor()

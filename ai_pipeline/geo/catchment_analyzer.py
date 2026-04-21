@@ -22,7 +22,7 @@ class CatchmentAnalyzer:
 out count;"""
 
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "KiranaIQ/1.0"}) as client:
                 resp = await client.post(OVERPASS_URL, data={"data": query})
                 data = resp.json()
                 count = int(
