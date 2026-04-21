@@ -1,65 +1,115 @@
-import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { CheckCircle2, Circle, Loader2, XCircle } from 'lucide-react';
+import type { PipelineStage, StageStatus } from '../../api/types';
 
-// Mocking the 5 pipeline stages defined in your architecture
-const STAGES = [
-  { id: 'vision', label: 'Vision Intelligence', description: 'Extracting shelf density & SKUs' },
-  { id: 'geo', label: 'Geo-Spatial Analysis', description: 'Mapping footfall & competition' },
-  { id: 'fraud', label: 'Fraud Detection', description: 'Running cross-signal tripwires' },
-  { id: 'fusion', label: 'Multimodal Fusion', description: 'Computing working capital cycle' },
-  { id: 'loan', label: 'Loan Sizing Engine', description: 'Calculating FOIR & EMI limits' },
-];
+const STAGE_META: Record<string, { label: string; description: string; emoji: string }> = {
+  vision: { label: 'Vision Intelligence', description: 'Analysing shelf density, SKUs & product categories', emoji: '👁' },
+  geo: { label: 'Geo-Spatial Analysis', description: 'Scoring footfall, competition & catchment area', emoji: '📍' },
+  fraud: { label: 'Fraud Detection', description: 'Running 5 cross-signal tripwire validators', emoji: '🛡' },
+  fusion: { label: 'Multimodal Fusion', description: 'Computing working capital cycle & revenue ranges', emoji: '⚡' },
+  loan: { label: 'Loan Sizing Engine', description: 'FOIR-based loan recommendation & peer benchmarking', emoji: '🏦' },
+};
+
+const STAGE_ORDER = ['vision', 'geo', 'fraud', 'fusion', 'loan'];
 
 interface Props {
-  // We'll pass the current active stage index (0 to 4), or 5 if completed
-  currentStageIndex: number; 
+  stages: PipelineStage[];
+  overallStatus?: string;
 }
 
-export default function ProgressTracker({ currentStageIndex }: Props) {
+export default function ProgressTracker({ stages, overallStatus }: Props) {
+  const stageMap: Record<string, StageStatus> = {};
+  stages.forEach(s => { stageMap[s.stage] = s.status; });
+
+  const doneCount = stages.filter(s => s.status === 'done').length;
+  const progress = Math.round((doneCount / 5) * 100);
+
   return (
-    <div className="w-full bg-surface border border-border rounded-2xl p-6 shadow-aesthetic">
-      <h2 className="text-lg font-bold text-primary mb-6">Analyzing Store Intelligence...</h2>
-      
-      <div className="space-y-6">
-        {STAGES.map((stage, index) => {
-          const isCompleted = index < currentStageIndex;
-          const isActive = index === currentStageIndex;
-          const isPending = index > currentStageIndex;
+    <div className="card p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="font-display font-semibold text-lg text-primary">Analysing Store Intelligence</h2>
+          <p className="text-sm text-muted mt-0.5">AI pipeline running — this takes 30–60 seconds</p>
+        </div>
+        <div className="text-right">
+          <span className="font-display text-2xl font-bold text-accent">{progress}%</span>
+          <p className="text-xs text-muted">complete</p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 bg-border rounded-full mb-8 overflow-hidden">
+        <div
+          className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Stages */}
+      <div className="space-y-0">
+        {STAGE_ORDER.map((stageId, idx) => {
+          const status = stageMap[stageId] ?? 'pending';
+          const meta = STAGE_META[stageId];
+          const isLast = idx === STAGE_ORDER.length - 1;
 
           return (
-            <div key={stage.id} className="flex items-start gap-4 relative">
-              {/* Connector Line */}
-              {index !== STAGES.length - 1 && (
-                <div className={clsx(
-                  "absolute left-[11px] top-8 w-[2px] h-[calc(100%-8px)]",
-                  isCompleted ? "bg-success" : "bg-border"
-                )} />
+            <div key={stageId} className="relative flex gap-4">
+              {/* Connector line */}
+              {!isLast && (
+                <div
+                  className={`absolute left-[15px] top-8 bottom-0 w-0.5 transition-colors duration-500 ${
+                    status === 'done' ? 'bg-success' : 'bg-border'
+                  }`}
+                  style={{ height: 'calc(100% - 8px)' }}
+                />
               )}
 
-              {/* Status Icon */}
-              <div className="relative z-10 bg-surface">
-                {isCompleted && <CheckCircle2 className="text-success" size={24} />}
-                {isActive && <Loader2 className="text-primary animate-spin" size={24} />}
-                {isPending && <Circle className="text-border" size={24} />}
+              {/* Icon */}
+              <div className="relative z-10 w-8 h-8 mt-1 flex-shrink-0 bg-surface flex items-center justify-center">
+                {status === 'done' && <CheckCircle2 size={28} className="text-success" />}
+                {status === 'running' && (
+                  <div className="relative">
+                    <Loader2 size={28} className="text-accent animate-spin" />
+                    <div className="absolute inset-0 rounded-full bg-accent/10 animate-ping" />
+                  </div>
+                )}
+                {status === 'failed' && <XCircle size={28} className="text-danger" />}
+                {status === 'pending' && <Circle size={28} className="text-border" />}
               </div>
 
-              {/* Text Content */}
-              <div className={clsx(
-                "flex-1 -mt-1",
-                isPending && "opacity-50"
-              )}>
-                <h3 className={clsx(
-                  "text-sm font-semibold uppercase tracking-wider",
-                  isActive ? "text-primary" : "text-muted"
-                )}>
-                  {stage.label}
-                </h3>
-                <p className="text-sm text-muted mt-1">{stage.description}</p>
+              {/* Content */}
+              <div className={`flex-1 pb-6 transition-opacity duration-300 ${status === 'pending' ? 'opacity-40' : 'opacity-100'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{meta.emoji}</span>
+                  <h3 className={`text-sm font-semibold tracking-wide ${
+                    status === 'running' ? 'text-accent' : status === 'done' ? 'text-primary' : 'text-muted'
+                  }`}>
+                    {meta.label}
+                  </h3>
+                  {status === 'running' && (
+                    <span className="text-[10px] font-medium bg-accent/10 text-accent px-2 py-0.5 rounded-full animate-pulse">
+                      Running
+                    </span>
+                  )}
+                  {status === 'done' && (
+                    <span className="text-[10px] font-medium bg-success-light text-success px-2 py-0.5 rounded-full">
+                      Done
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted mt-0.5">{meta.description}</p>
               </div>
             </div>
           );
         })}
       </div>
+
+      {overallStatus === 'failed' && (
+        <div className="mt-2 p-3 bg-danger-light border border-danger/20 rounded-xl text-sm text-danger flex items-center gap-2">
+          <XCircle size={16} />
+          Pipeline failed. Please retry or contact support.
+        </div>
+      )}
     </div>
   );
 }
