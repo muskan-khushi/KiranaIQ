@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Add ai_pipeline to Python path
-ENV PYTHONPATH="/app:/ai_pipeline"
+# Add root to Python path so `ai_pipeline` package can be imported
+ENV PYTHONPATH="/app:/"
 
 EXPOSE 8000
