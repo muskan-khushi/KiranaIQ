@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface GeoState {
   lat: number | null;
@@ -13,7 +13,7 @@ export function useGeolocation(autoCapture = true) {
     lat: null, lng: null, accuracy: null, error: null, loading: false,
   });
 
-  const capture = () => {
+  const capture = useCallback(() => {
     if (!navigator.geolocation) {
       setState(s => ({ ...s, error: 'Geolocation not supported', loading: false }));
       return;
@@ -30,11 +30,11 @@ export function useGeolocation(autoCapture = true) {
       (err) => setState(s => ({ ...s, error: err.message, loading: false })),
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  };
+  }, []);
 
   useEffect(() => {
     if (autoCapture) capture();
-  }, []);
+  }, [autoCapture, capture]);
 
   return { ...state, capture };
 }

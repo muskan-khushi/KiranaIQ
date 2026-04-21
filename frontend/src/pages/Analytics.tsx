@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, TrendingDown, Minus, Activity, BarChart2, IndianRupee } from 'lucide-react';
+import { TrendingUp, Activity, BarChart2, IndianRupee } from 'lucide-react';
 import { listAssessments } from '../api/assessment.api';
 import { formatLakh, formatPercent } from '../utils/formatCurrency';
 import {

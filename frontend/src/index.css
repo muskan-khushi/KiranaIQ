@@ -12,6 +12,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   font-family: 'DM Sans', sans-serif;
@@ -19,6 +23,19 @@ body {
   color: #0D0D0D;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Brand selection color */
+::selection {
+  background-color: rgba(255, 107, 53, 0.2);
+  color: #0D0D0D;
+}
+
+/* Focus-visible ring for keyboard navigation (accessibility) */
+*:focus-visible {
+  outline: 2px solid #FF6B35;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Custom scrollbar */
@@ -83,4 +100,14 @@ body {
 
 .recharts-tooltip-wrapper {
   outline: none !important;
+}
+
+/* Smooth hover lift for interactive cards */
+.card-interactive {
+  @apply card cursor-pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  @apply shadow-card-hover;
 }

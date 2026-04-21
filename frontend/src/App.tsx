@@ -4,7 +4,7 @@ import Navbar from './components/layout/Navbar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import NewAssessment from './pages/NewAssessment';
-import AssessmentResult from './pages/AssessmentResult';
+import AssessmentResultPage from './pages/AssessmentResult';
 import Analytics from './pages/Analytics';
 import { useAuthStore } from './store/auth.store';
 
@@ -57,7 +57,7 @@ export default function App() {
 
           {/* Demo results — accessible without login (query param style) */}
           <Route element={<PublicResultLayout />}>
-            <Route path="/results" element={<AssessmentResult />} />
+            <Route path="/results" element={<AssessmentResultPage />} />
           </Route>
 
           {/* Protected routes */}
@@ -66,8 +66,8 @@ export default function App() {
             <Route path="/new-assessment" element={<NewAssessment />} />
             <Route path="/analytics" element={<Analytics />} />
             {/* Both URL patterns for results: query-param (?id=...) and path-style (/assessment/:id) */}
-            <Route path="/results" element={<AssessmentResult />} />
-            <Route path="/assessment/:id" element={<AssessmentResult />} />
+            <Route path="/results" element={<AssessmentResultPage />} />
+            <Route path="/assessment/:id" element={<AssessmentResultPage />} />
           </Route>
 
           {/* Default redirects */}

@@ -126,7 +126,6 @@ export default function ImageUploadZone({ onImagesChange }: Props) {
                 src={file.preview}
                 alt={`Store image ${i + 1}`}
                 className="w-full h-full object-cover"
-                onLoad={() => URL.revokeObjectURL(file.preview)}
               />
               {/* Label */}
               {i < 3 && (

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { MapPin, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 
@@ -8,7 +9,13 @@ interface Props {
 export default function GpsCapture({ onCapture }: Props) {
   const { lat, lng, accuracy, error, loading, capture } = useGeolocation(true);
 
-  if (lat && lng) onCapture(lat, lng);
+  // Notify parent via effect instead of during render to avoid
+  // React StrictMode double-invocation and infinite re-render loops
+  useEffect(() => {
+    if (lat != null && lng != null) {
+      onCapture(lat, lng);
+    }
+  }, [lat, lng, onCapture]);
 
   return (
     <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
