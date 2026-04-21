@@ -1,50 +1,76 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import AssessmentForm from './components/assessment/AssessmentForm';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import Navbar from './components/layout/Navbar';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import NewAssessment from './pages/NewAssessment';
 import AssessmentResult from './components/results/AssessmentResult';
+import { useAuthStore } from './store/auth.store';
 
-// A simple layout wrapper to give it a clean app-like feel
-function Layout({ children }: { children: React.ReactNode }) {
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function ProtectedLayout() {
+  const { isAuthenticated } = useAuthStore();
+  if (!isAuthenticated()) return <Navigate to="/login" replace />;
   return (
     <div className="min-h-screen bg-background">
-      {/* Aesthetic Top Navbar */}
-      <nav className="bg-surface border-b border-border sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-surface font-bold text-xl">
-              K
-            </div>
-            <span className="text-xl font-bold text-primary tracking-tight">KiranaIQ</span>
-          </div>
-          <div className="flex gap-4 text-sm font-medium text-muted">
-            <span className="hover:text-primary cursor-pointer transition-colors">Dashboard</span>
-            <span className="text-primary cursor-pointer">New Assessment</span>
-          </div>
-        </div>
-      </nav>
-
-      {/* Page Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+      <Navbar />
+      <Outlet />
     </div>
   );
 }
 
+function PublicLayout() {
+  return <Outlet />;
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <Layout>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
         <Routes>
-          {/* Default route goes to the submission form */}
-          <Route path="/" element={<Navigate to="/new-assessment" replace />} />
-          
-          {/* The Data Entry Page */}
-          <Route path="/new-assessment" element={<AssessmentForm />} />
-          
-          {/* The Final Dashboard */}
-          <Route path="/results" element={<AssessmentResult />} />
+          {/* Public routes */}
+          <Route element={<PublicLayout />}>
+            <Route path="/login" element={<Login />} />
+          </Route>
+
+          {/* Demo results - accessible without login */}
+          <Route
+            path="/results"
+            element={
+              <div className="min-h-screen bg-background">
+                <div className="border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-50">
+                  <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+                    <a href="/" className="flex items-center gap-2 font-display font-bold text-lg">
+                      Kirana<span className="text-accent">IQ</span>
+                    </a>
+                    <a href="/login" className="text-sm text-accent hover:underline font-medium">Sign In →</a>
+                  </div>
+                </div>
+                <AssessmentResult />
+              </div>
+            }
+          />
+
+          {/* Protected routes */}
+          <Route element={<ProtectedLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/new-assessment" element={<NewAssessment />} />
+            <Route path="/assessment/:id" element={<AssessmentResult />} />
+          </Route>
+
+          {/* Default redirects */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </Layout>
-    </BrowserRouter>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
