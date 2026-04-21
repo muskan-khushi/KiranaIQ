@@ -21,18 +21,26 @@ async def _ensure_connections():
     _connections_initialized = True
 
 
+_loop = None
+
+def get_or_create_loop():
+    global _loop
+    if _loop is None or _loop.is_closed():
+        _loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_loop)
+    return _loop
+
+
 @celery.task(bind=True, max_retries=2, name="tasks.run_assessment_pipeline")
 def run_assessment_pipeline(self, assessment_id: str):
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = get_or_create_loop()
         loop.run_until_complete(_run(assessment_id))
     except Exception as exc:
         # Mark as failed in DB, then retry
         try:
-            loop2 = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop2)
-            loop2.run_until_complete(_mark_failed(assessment_id, str(exc)))
+            loop = get_or_create_loop()
+            loop.run_until_complete(_mark_failed(assessment_id, str(exc)))
         except Exception:
             pass
         raise self.retry(exc=exc, countdown=30)

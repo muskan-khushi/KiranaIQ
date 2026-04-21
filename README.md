@@ -253,7 +253,7 @@ REDIS_URL=redis://redis:6379/0
 #### 2. Start the Stack
 
 ```bash
-docker-compose up --build
+docker-compose up --build -d
 ```
 
 This starts: FastAPI backend (port 8000), Celery worker (2 concurrent), MongoDB 7, Redis 7.
