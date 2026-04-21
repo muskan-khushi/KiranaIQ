@@ -106,7 +106,7 @@ export default function NewAssessment() {
   });
 
   const hasMeta = !!(meta.shop_size_sqft || meta.years_in_operation || meta.monthly_rent || meta.store_address);
-  const canSubmit = images.length >= 3 && coords;
+  const canSubmit = images.length >= 3 && !!coords;
 
   const steps = [
     { label: 'Images', done: images.length >= 3, active: images.length < 3 },
