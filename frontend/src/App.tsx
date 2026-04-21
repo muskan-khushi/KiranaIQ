@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, Link } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Navbar from './components/layout/Navbar';
 import Login from './pages/Login';
@@ -11,10 +11,7 @@ import { useAuthStore } from './store/auth.store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
+    queries: { retry: 1, refetchOnWindowFocus: false },
   },
 });
 
@@ -29,25 +26,37 @@ function ProtectedLayout() {
   );
 }
 
-// Public nav wrapper (for results & how-it-works pages accessible without login)
-function PublicLayout() {
+// KEY FIX: AdaptiveLayout renders full Navbar for authenticated users,
+// minimal nav for unauthenticated visitors. This is what was missing —
+// /how-it-works was only in PublicLayout so authenticated users lost
+// the Navbar when navigating there.
+function AdaptiveLayout() {
+  const { isAuthenticated } = useAuthStore();
+  if (isAuthenticated()) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <Outlet />
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2 font-display font-bold text-lg">
+          <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg tracking-tight">
             Kirana<span className="text-accent">IQ</span>
-          </a>
+          </Link>
           <div className="flex items-center gap-4">
-            <a href="/how-it-works" className="text-sm text-muted hover:text-primary transition-colors hidden sm:block">
+            <Link to="/how-it-works" className="text-sm text-muted hover:text-primary transition-colors hidden sm:block">
               How it works
-            </a>
-            <a href="/login" className="text-sm text-accent hover:underline font-medium">
+            </Link>
+            <Link to="/login" className="text-sm text-accent hover:underline font-medium">
               Sign In →
-            </a>
+            </Link>
           </div>
         </div>
-      </div>
+      </header>
       <Outlet />
     </div>
   );
@@ -58,26 +67,22 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Public routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Public pages with minimal nav */}
-          <Route element={<PublicLayout />}>
+          {/* Adaptive: full Navbar for auth, minimal nav for visitors */}
+          <Route element={<AdaptiveLayout />}>
             <Route path="/results" element={<AssessmentResultPage />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
           </Route>
 
-          {/* Protected routes */}
+          {/* Protected: always full Navbar */}
           <Route element={<ProtectedLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/new-assessment" element={<NewAssessment />} />
             <Route path="/analytics" element={<Analytics />} />
-            <Route path="/results" element={<AssessmentResultPage />} />
             <Route path="/assessment/:id" element={<AssessmentResultPage />} />
-            <Route path="/how-it-works" element={<HowItWorks />} />
           </Route>
 
-          {/* Default redirects */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
