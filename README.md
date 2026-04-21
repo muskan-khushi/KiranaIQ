@@ -160,16 +160,17 @@ Max_Loan = Monthly_Net_Income × FOIR × Annuity_Factor(18% p.a., 18 months)
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Frontend | React 18, Vite, TypeScript, Tailwind | NBFC officer UI |
+| Frontend | React 18, Vite, TypeScript, Tailwind CSS | NBFC officer UI |
+| UI Components | Recharts, Mapbox GL / OSM, Zustand, React Query | Charts, maps, state, data fetching |
 | API | FastAPI 0.111, Python 3.11 | REST gateway + auth |
 | Task Queue | Celery 5.3, Redis 7 | Async pipeline execution |
 | Vision AI | Groq (Llama 3.2 Vision) | Shelf analysis |
 | Geo | OSM Overpass API | Footfall, competition, catchment |
 | Database | MongoDB 7 (Motor async) | Document store + geo queries |
-| Cache | Redis 7 | Geo query caching |
-| Storage | AWS S3 / Local | Image and video storage |
+| Cache | Redis 7 | Geo query caching (6h TTL) |
+| Storage | AWS S3 / Local filesystem | Image and video storage |
 | Auth | JWT (python-jose) + bcrypt | Officer authentication |
-| PDF Export | ReportLab | Credit memo generation |
+| PDF Export | jsPDF (client) + ReportLab (server) | Credit memo generation |
 
 ---
 
@@ -177,20 +178,34 @@ Max_Loan = Monthly_Net_Income × FOIR × Annuity_Factor(18% p.a., 18 months)
 
 ```
 kiranaiq/
-├── frontend/                   # React + Vite (TypeScript)
+├── frontend/                   # React 18 + Vite (TypeScript)
+│   ├── index.html              # Entry point with OG meta tags
+│   ├── tailwind.config.ts      # Design system tokens + animations
+│   ├── vite.config.ts          # Dev proxy → localhost:8000
 │   └── src/
-│       ├── api/                # Axios client + typed API calls
-│       ├── components/         # ImageUploadZone, PipelineTracker, etc.
-│       ├── pages/              # Login, Dashboard, NewAssessment, Results
+│       ├── api/                # Axios client, typed API calls, types.ts
+│       ├── components/
+│       │   ├── assessment/     # ImageUploadZone, GpsCapture, ProgressTracker
+│       │   ├── layout/         # Navbar (responsive with mobile menu)
+│       │   └── results/        # CashFlowCard, ConfidenceGauge, RiskFlagPanel,
+│       │                       # FeatureBreakdown, PeerBenchmarkChart,
+│       │                       # GeoMapView (Mapbox + OSM fallback),
+│       │                       # LoanSuggestionBox, ExportPDFButton
+│       ├── hooks/              # useAssessmentPoll, useAuth, useGeolocation,
+│       │                       # useImageUpload
+│       ├── pages/              # Login, Dashboard, Analytics,
+│       │                       # NewAssessment, AssessmentResult
 │       ├── store/              # Zustand (auth + assessment state)
-│       └── utils/              # Currency formatting, PDF export
+│       └── utils/              # formatCurrency, riskColors, exportPDF,
+│                               # mockData (offline demo)
 │
 ├── backend/                    # Python FastAPI
 │   ├── app/
 │   │   ├── api/v1/             # assess.py · auth.py · history.py
 │   │   ├── db/                 # mongo.py · redis.py · repositories/
+│   │   ├── middleware/         # rate_limit.py
 │   │   ├── models/             # Pydantic schemas
-│   │   ├── services/           # auth_service · storage_service
+│   │   ├── services/           # auth_service · storage_service · pdf_service
 │   │   └── tasks/              # Celery app + assess_task
 │   ├── scripts/
 │   │   └── seed_demo.py        # One-command demo data seeder
@@ -200,7 +215,7 @@ kiranaiq/
 ├── ai_pipeline/                # Pure Python AI modules
 │   ├── vision/                 # groq_client · shelf_analyzer · multi_image_merger
 │   ├── geo/                    # footfall_scorer · competition_mapper · catchment_analyzer
-│   ├── fraud/                  # cross_signal_validator (5 tripwires)
+│   ├── fraud/                  # cross_signal_validator (5 tripwires) · temporal_analyzer
 │   ├── fusion/                 # sales_estimator · uncertainty_engine · feature_attributor
 │   ├── loan/                   # loan_sizer
 │   ├── benchmarking/           # peer_comparator
@@ -251,7 +266,21 @@ docker-compose exec backend python scripts/seed_demo.py
 
 Creates a demo NBFC officer account and a completed assessment with realistic mock results.
 
-#### 4. Explore the API
+**Demo credentials:** `demo@kiranaiq.in` / `demo1234`
+
+#### 4. Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) — the frontend proxies API calls to `localhost:8000` automatically.
+
+> **💡 No backend?** Visit [http://localhost:5173/results?demo=1](http://localhost:5173/results?demo=1) to see the full results UI with mock data — no Docker or backend required.
+
+#### 5. Explore the API
 
 Open [http://localhost:8000/docs](http://localhost:8000/docs) — Swagger UI with all endpoints.
 
@@ -363,7 +392,19 @@ cd backend
 python scripts/seed_demo.py
 ```
 
-#### 9. Verify everything is working
+**Demo credentials:** `demo@kiranaiq.in` / `demo1234`
+
+#### 9. Start the Frontend (separate terminal)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173). The Vite proxy forwards `/api` requests to `localhost:8000`.
+
+#### 10. Verify everything is working
 
 ```bash
 # Health check
@@ -548,10 +589,36 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
+## Demo Mode (No Backend Required)
+
+The frontend includes a **fully offline demo mode** with realistic mock data. This lets judges evaluate the UI, UX, and data visualisations without spinning up Docker, MongoDB, or Redis:
+
+```bash
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:5173/results?demo=1
+```
+
+Demo mode covers:
+- ✅ Full credit assessment results dashboard
+- ✅ Cash flow estimates with recommendation badge
+- ✅ Radial confidence gauge
+- ✅ Risk flag panel with expandable cards
+- ✅ Feature attribution horizontal bar chart
+- ✅ Peer benchmarking (percentile gauge)
+- ✅ Interactive map (OpenStreetMap — no API key needed)
+- ✅ Loan sizing with EMI breakdown
+- ✅ PDF credit memo export
+
+> **Note:** Login, new assessments, and dashboard history require the full backend stack.
+
+---
+
 <div align="center">
 
 **Built for Problem Statement C — AI-Powered Estimation Portal**
 
-*KiranaIQ · Hackathon Submission · Confidential*
+*KiranaIQ · Hackathon Submission*
 
 </div>
