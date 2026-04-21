@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import NewAssessment from './pages/NewAssessment';
 import AssessmentResultPage from './pages/AssessmentResult';
 import Analytics from './pages/Analytics';
+import HowItWorks from './pages/HowItWorks';
 import { useAuthStore } from './store/auth.store';
 
 const queryClient = new QueryClient({
@@ -28,8 +29,8 @@ function ProtectedLayout() {
   );
 }
 
-// Minimal nav wrapper for public result pages
-function PublicResultLayout() {
+// Public nav wrapper (for results & how-it-works pages accessible without login)
+function PublicLayout() {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-50">
@@ -37,9 +38,14 @@ function PublicResultLayout() {
           <a href="/" className="flex items-center gap-2 font-display font-bold text-lg">
             Kirana<span className="text-accent">IQ</span>
           </a>
-          <a href="/login" className="text-sm text-accent hover:underline font-medium">
-            Sign In →
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/how-it-works" className="text-sm text-muted hover:text-primary transition-colors hidden sm:block">
+              How it works
+            </a>
+            <a href="/login" className="text-sm text-accent hover:underline font-medium">
+              Sign In →
+            </a>
+          </div>
         </div>
       </div>
       <Outlet />
@@ -55,9 +61,10 @@ export default function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Demo results — accessible without login (query param style) */}
-          <Route element={<PublicResultLayout />}>
+          {/* Public pages with minimal nav */}
+          <Route element={<PublicLayout />}>
             <Route path="/results" element={<AssessmentResultPage />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
           </Route>
 
           {/* Protected routes */}
@@ -65,9 +72,9 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/new-assessment" element={<NewAssessment />} />
             <Route path="/analytics" element={<Analytics />} />
-            {/* Both URL patterns for results: query-param (?id=...) and path-style (/assessment/:id) */}
             <Route path="/results" element={<AssessmentResultPage />} />
             <Route path="/assessment/:id" element={<AssessmentResultPage />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
           </Route>
 
           {/* Default redirects */}

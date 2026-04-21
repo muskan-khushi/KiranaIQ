@@ -1,10 +1,87 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { MapPin, Store, Calendar, IndianRupee, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  MapPin, Store, Calendar, IndianRupee, ChevronRight,
+  AlertCircle, Loader2, CheckCircle2, Eye
+} from 'lucide-react';
 import ImageUploadZone from '../components/assessment/ImageUploadZone';
 import GpsCapture from '../components/assessment/GpsCapture';
 import { submitAssessment } from '../api/assessment.api';
+
+// ─── Step indicator ──────────────────────────────────────────────────────────
+
+function StepBar({ steps }: { steps: { label: string; done: boolean; active: boolean }[] }) {
+  return (
+    <div className="flex items-center gap-0 mb-8">
+      {steps.map((s, i) => (
+        <div key={s.label} className="flex items-center flex-1">
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+              s.done ? 'bg-success text-white' : s.active ? 'bg-accent text-white' : 'bg-surface-2 text-muted border border-border'
+            }`}>
+              {s.done ? <CheckCircle2 size={14} /> : i + 1}
+            </div>
+            <span className={`text-[10px] font-medium whitespace-nowrap transition-colors ${
+              s.active ? 'text-accent' : s.done ? 'text-success' : 'text-muted'
+            }`}>
+              {s.label}
+            </span>
+          </div>
+          {i < steps.length - 1 && (
+            <div className={`flex-1 h-px mx-2 mb-4 transition-colors ${s.done ? 'bg-success' : 'bg-border'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Live accuracy estimator ─────────────────────────────────────────────────
+
+function AccuracyMeter({ imageCount, hasGps, hasMeta }: { imageCount: number; hasGps: boolean; hasMeta: boolean }) {
+  const score = Math.min(
+    100,
+    imageCount * 12 +
+    (hasGps ? 25 : 0) +
+    (hasMeta ? 15 : 0)
+  );
+  const label = score >= 80 ? 'High' : score >= 60 ? 'Moderate' : score >= 40 ? 'Fair' : 'Low';
+  const color = score >= 80 ? '#1A7A4A' : score >= 60 ? '#2563EB' : score >= 40 ? '#B45309' : '#9CA3AF';
+
+  return (
+    <div className="bg-surface-2 border border-border rounded-xl p-4 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-muted">Estimated accuracy</span>
+        <span className="text-xs font-bold" style={{ color }}>{label} ({score}%)</span>
+      </div>
+      <div className="h-2 bg-border rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${score}%`, background: color }}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {[
+          { label: 'GPS location', done: hasGps, gain: '+25%' },
+          { label: '3+ images', done: imageCount >= 3, gain: '+36%' },
+          { label: 'Store metadata', done: hasMeta, gain: '+15%' },
+        ].map(t => (
+          <div key={t.label} className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${
+            t.done
+              ? 'bg-success-light text-success border-success/20'
+              : 'bg-surface text-muted border-border'
+          }`}>
+            {t.done ? <CheckCircle2 size={10} /> : <span className="text-muted text-[10px]">{t.gain}</span>}
+            {t.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
 
 export default function NewAssessment() {
   const navigate = useNavigate();
@@ -28,7 +105,15 @@ export default function NewAssessment() {
     },
   });
 
+  const hasMeta = !!(meta.shop_size_sqft || meta.years_in_operation || meta.monthly_rent || meta.store_address);
   const canSubmit = images.length >= 3 && coords;
+
+  const steps = [
+    { label: 'Images', done: images.length >= 3, active: images.length < 3 },
+    { label: 'GPS', done: !!coords, active: images.length >= 3 && !coords },
+    { label: 'Details', done: hasMeta, active: images.length >= 3 && !!coords && !hasMeta },
+    { label: 'Submit', done: false, active: canSubmit },
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,25 +133,50 @@ export default function NewAssessment() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
+
       {/* Page header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="inline-flex items-center gap-2 text-xs font-semibold text-accent bg-accent/10 px-3 py-1.5 rounded-full border border-accent/20 mb-3">
           <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
           AI-Powered Underwriting
         </div>
         <h1 className="font-display text-3xl font-bold text-primary mb-2">New Store Assessment</h1>
-        <p className="text-muted">Upload 3–5 store images and GPS location. Our AI will return a credit report in under 90 seconds.</p>
+        <p className="text-muted">Upload 3–5 store images and GPS location. Results in under 90 seconds.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Step bar */}
+      <StepBar steps={steps} />
+
+      {/* Accuracy meter */}
+      <AccuracyMeter
+        imageCount={images.length}
+        hasGps={!!coords}
+        hasMeta={hasMeta}
+      />
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+
         {/* Step 1: Images */}
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-8 bg-accent text-white rounded-lg flex items-center justify-center font-display font-bold text-sm">1</div>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-display font-bold text-sm transition-colors ${
+              images.length >= 3 ? 'bg-success text-white' : 'bg-accent text-white'
+            }`}>
+              {images.length >= 3 ? <CheckCircle2 size={16} /> : '1'}
+            </div>
             <div>
               <h2 className="font-semibold text-primary">Visual Intelligence</h2>
               <p className="text-xs text-muted">Interior shelves, counter, exterior — minimum 3 photos</p>
             </div>
+            {images.length > 0 && (
+              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium border ${
+                images.length >= 3
+                  ? 'bg-success-light text-success border-success/20'
+                  : 'bg-warning-light text-warning border-warning/20'
+              }`}>
+                {images.length}/5 photos
+              </span>
+            )}
           </div>
           <ImageUploadZone onImagesChange={setImages} />
         </div>
@@ -74,10 +184,14 @@ export default function NewAssessment() {
         {/* Step 2: GPS */}
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-8 bg-accent text-white rounded-lg flex items-center justify-center font-display font-bold text-sm">2</div>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-display font-bold text-sm transition-colors ${
+              coords ? 'bg-success text-white' : 'bg-surface-2 text-secondary border border-border'
+            }`}>
+              {coords ? <CheckCircle2 size={16} /> : '2'}
+            </div>
             <div>
               <h2 className="font-semibold text-primary">GPS Location</h2>
-              <p className="text-xs text-muted">Required for geo-spatial footfall & competition analysis</p>
+              <p className="text-xs text-muted">Required for geo-spatial footfall and competition analysis</p>
             </div>
           </div>
           <GpsCapture onCapture={handleCoords} />
@@ -86,15 +200,18 @@ export default function NewAssessment() {
         {/* Step 3: Metadata */}
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-8 bg-surface-2 text-secondary border border-border rounded-lg flex items-center justify-center font-display font-bold text-sm">3</div>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-display font-bold text-sm transition-colors ${
+              hasMeta ? 'bg-success text-white' : 'bg-surface-2 text-secondary border border-border'
+            }`}>
+              {hasMeta ? <CheckCircle2 size={16} /> : '3'}
+            </div>
             <div>
               <h2 className="font-semibold text-primary">Store Metadata</h2>
               <p className="text-xs text-muted">Optional — each field adds ±5% accuracy to the estimate</p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            {/* Address */}
+          <div className="space-y-3">
             <div className="relative">
               <MapPin size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
@@ -141,7 +258,7 @@ export default function NewAssessment() {
           </div>
         </div>
 
-        {/* Validation errors */}
+        {/* Validation */}
         {!canSubmit && images.length > 0 && (
           <div className="flex items-center gap-2 text-sm text-warning bg-warning-light border border-warning/20 rounded-xl px-4 py-3">
             <AlertCircle size={16} />
@@ -182,13 +299,18 @@ export default function NewAssessment() {
           )}
         </button>
 
-        {/* Demo link */}
-        <p className="text-center text-xs text-muted">
-          Don't have images?{' '}
+        {/* Demo + how-it-works links */}
+        <div className="flex items-center justify-center gap-4 text-xs text-muted">
           <a href="/results?demo=1" className="text-accent hover:underline font-medium">
-            View a demo assessment →
+            View demo results →
           </a>
-        </p>
+          <span>·</span>
+          <a href="/how-it-works" className="hover:text-primary transition-colors flex items-center gap-1">
+            <Eye size={11} />
+            How the AI pipeline works
+          </a>
+        </div>
+
       </form>
     </div>
   );

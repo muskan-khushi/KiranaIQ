@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, LayoutDashboard, PlusCircle, BarChart2, LogOut, Menu, X } from 'lucide-react';
+import { Activity, LayoutDashboard, PlusCircle, BarChart2, LogOut, Menu, X, Cpu } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 
 export default function Navbar() {
@@ -9,15 +9,17 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
-    { to: '/dashboard',     label: 'Dashboard',       icon: LayoutDashboard },
+    { to: '/dashboard',      label: 'Dashboard',       icon: LayoutDashboard },
     { to: '/new-assessment', label: 'New Assessment',  icon: PlusCircle },
-    { to: '/analytics',     label: 'Analytics',        icon: BarChart2 },
+    { to: '/analytics',      label: 'Analytics',        icon: BarChart2 },
+    { to: '/how-it-works',   label: 'How it works',     icon: Cpu },
   ];
 
   return (
     <nav className="sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center shadow-glow-accent group-hover:scale-105 transition-transform">
@@ -28,7 +30,7 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop nav links */}
+          {/* Desktop nav */}
           <div className="hidden sm:flex items-center gap-1">
             {navItems.map(({ to, label, icon: Icon }) => {
               const active = location.pathname === to;
@@ -42,14 +44,14 @@ export default function Navbar() {
                       : 'text-secondary hover:bg-surface-2 hover:text-primary'
                   }`}
                 >
-                  <Icon size={16} />
+                  <Icon size={15} />
                   {label}
                 </Link>
               );
             })}
           </div>
 
-          {/* User + logout + mobile toggle */}
+          {/* User + logout */}
           <div className="flex items-center gap-3">
             {email && (
               <span className="hidden md:block text-xs text-muted font-mono bg-surface-2 px-2.5 py-1 rounded-md border border-border">
@@ -64,7 +66,7 @@ export default function Navbar() {
               <span className="hidden sm:inline">Logout</span>
             </button>
 
-            {/* Mobile hamburger */}
+            {/* Mobile toggle */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="sm:hidden flex items-center justify-center w-9 h-9 rounded-lg text-secondary hover:bg-surface-2 hover:text-primary transition-all"
@@ -88,9 +90,7 @@ export default function Navbar() {
                   to={to}
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    active
-                      ? 'bg-accent/10 text-accent'
-                      : 'text-secondary hover:bg-surface-2 hover:text-primary'
+                    active ? 'bg-accent/10 text-accent' : 'text-secondary hover:bg-surface-2 hover:text-primary'
                   }`}
                 >
                   <Icon size={18} />
@@ -99,9 +99,7 @@ export default function Navbar() {
               );
             })}
             <div className="border-t border-border pt-2 mt-2">
-              {email && (
-                <p className="text-xs text-muted font-mono px-3 py-1.5">{email}</p>
-              )}
+              {email && <p className="text-xs text-muted font-mono px-3 py-1.5">{email}</p>}
               <button
                 onClick={() => { setMobileOpen(false); logout(); }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-danger hover:bg-danger-light transition-all w-full"
