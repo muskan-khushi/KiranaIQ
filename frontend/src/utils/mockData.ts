@@ -1,25 +1,61 @@
-export const MOCK_ASSESSMENT_RESULT = {
-  daily_sales_range: [6000, 9000],
-  monthly_revenue_range: [180000, 270000],
-  monthly_income_range: [25000, 45000],
-  confidence_score: 0.72,
+import type { AssessmentResult } from '../api/types';
+
+export const MOCK_ASSESSMENT_RESULT: AssessmentResult = {
+  assessment_id: 'demo-001',
+  status: 'completed',
+  created_at: new Date().toISOString(),
+  store_address: 'Shop 42, Chandni Chowk Market, Delhi',
+  lat: 28.6562,
+  lng: 77.2310,
+  shop_size_sqft: 180,
+  years_in_operation: 7,
+  monthly_rent: 12000,
+  daily_sales_range: [7200, 10800],
+  monthly_revenue_range: [187200, 280800],
+  monthly_income_range: [26208, 39312],
+  confidence_score: 0.74,
+  recommendation: 'approve',
+  shelf_density_index: 0.78,
+  sku_diversity_score: 7,
+  geo_footfall_score: 72,
+  competition_index: 0.40,
   risk_flags: [
     {
-      code: "inventory_footfall_mismatch",
-      severity: "high",
-      description: "High inventory density detected but geo footfall score is low.",
-      recommended_action: "Conduct physical visit to verify actual inventory."
+      code: 'inventory_footfall_mismatch',
+      severity: 'high',
+      description: 'High inventory density detected but geo footfall score is very low — possible borrowed stock for inspection day.',
+      recommended_action: 'Conduct a physical visit to verify actual live inventory.',
     }
   ],
-  recommendation: "needs_verification",
-  shelf_density_index: 0.78,
-  sku_diversity_score: 6.2,
-  geo_footfall_score: 71,
-  competition_index: 0.44,
+  feature_attribution: [
+    { feature: 'Shelf Density Index', value: 0.78, contribution_pct: 21.8, direction: 'positive' },
+    { feature: 'Inventory Value Est', value: 0.60, contribution_pct: 13.2, direction: 'positive' },
+    { feature: 'Geo Footfall Score', value: 0.72, contribution_pct: 13.0, direction: 'positive' },
+    { feature: 'Sku Diversity Score', value: 0.78, contribution_pct: 9.3, direction: 'positive' },
+    { feature: 'Competition Index', value: 0.40, contribution_pct: 4.0, direction: 'negative' },
+    { feature: 'Catchment Score', value: 0.55, contribution_pct: 4.4, direction: 'positive' },
+    { feature: 'Refill Signal', value: 0.60, contribution_pct: 4.2, direction: 'positive' },
+    { feature: 'Category Diversity', value: 0.50, contribution_pct: 2.5, direction: 'positive' },
+  ],
+  peer_benchmark: {
+    percentile: 68.0,
+    n_peers: 12,
+    avg_sdi: 0.65,
+    avg_footfall: 58.0,
+  },
   loan_suggestion: {
-    min_loan: 120000,
-    max_loan: 280000,
-    suggested_tenure_months: 24,
-    monthly_emi_range: [5900, 13800]
-  }
+    min_loan: 210000,
+    max_loan: 315000,
+    suggested_tenure_months: 18,
+    monthly_emi_range: [13200, 19800],
+    foir_used: 0.45,
+    interest_rate_pa: 0.18,
+  },
+  pipeline_stages: [
+    { stage: 'vision', status: 'done', completed_at: new Date().toISOString() },
+    { stage: 'geo', status: 'done', completed_at: new Date().toISOString() },
+    { stage: 'fraud', status: 'done', completed_at: new Date().toISOString() },
+    { stage: 'fusion', status: 'done', completed_at: new Date().toISOString() },
+    { stage: 'loan', status: 'done', completed_at: new Date().toISOString() },
+  ],
 };
