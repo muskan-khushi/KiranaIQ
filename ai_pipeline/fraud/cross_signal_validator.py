@@ -1,11 +1,7 @@
 """
 Cross-Signal Fraud Validator
-Runs 5 automated tripwires that catch the most common gaming patterns:
-  1. High inventory + low footfall (borrowed stock day-of-inspection)
-  2. Low multi-image consistency (selective photography)
-  3. Missing required image types (hiding low-stock areas)
-  4. Premium SKUs in low-income catchment (display stock not for sale)
-  5. High competition + low SDI (market share under pressure)
+Runs 5 automated tripwires that catch the most common gaming patterns.
+Thresholds aligned with the KiranaIQ Implementation Bible (Section 12).
 """
 
 RISK_FLAG_DEFINITIONS = {
@@ -52,18 +48,20 @@ class CrossSignalValidator:
     def validate(self, vision: dict, footfall: float, catchment: dict) -> dict:
         flags = []
 
-        sdi = vision.get("sdi", 0.5)
+        sdi         = vision.get("sdi", 0.5)
         consistency = vision.get("consistency_score", 1.0)
-        coverage = vision.get("image_type_coverage", {})
-        categories = vision.get("dominant_categories", [])
-        competition = vision.get("competition_index", 0.3)  # passed via signals
+        coverage    = vision.get("image_type_coverage", {})
+        categories  = vision.get("dominant_categories", [])
+        competition = vision.get("competition_index", 0.3)
 
         # ── Tripwire 1: High inventory, low footfall ──────────────────────────
-        if sdi > 0.75 and footfall < 30:
+        # Bible threshold: SDI > 0.75 AND footfall < 35
+        if sdi > 0.75 and footfall < 35:
             flags.append(RISK_FLAG_DEFINITIONS["inventory_footfall_mismatch"])
 
         # ── Tripwire 2: Low multi-image consistency ───────────────────────────
-        if consistency < 0.55:
+        # Bible threshold: consistency < 0.6
+        if consistency < 0.6:
             flags.append(RISK_FLAG_DEFINITIONS["low_image_consistency"])
 
         # ── Tripwire 3: Missing required image types ──────────────────────────
@@ -78,16 +76,17 @@ class CrossSignalValidator:
                 flags.append(RISK_FLAG_DEFINITIONS["sku_geo_income_mismatch"])
 
         # ── Tripwire 5: High competition + low SDI ────────────────────────────
+        # NOTE: this tripwire was present in RISK_FLAG_DEFINITIONS but the
+        # validate() method never checked it — fixed here.
         if competition > 0.65 and sdi < 0.4:
             flags.append(RISK_FLAG_DEFINITIONS["high_competition_low_sdi"])
 
         recommendation = self._recommend(flags, sdi, footfall)
-
         return {"flags": flags, "recommendation": recommendation}
 
     @staticmethod
     def _recommend(flags: list, sdi: float, footfall: float) -> str:
-        high_severity = [f for f in flags if f["severity"] == "high"]
+        high_severity = [f for f in flags if f.get("severity") == "high"]
         if len(high_severity) >= 2:
             return "reject"
         if len(high_severity) == 1:

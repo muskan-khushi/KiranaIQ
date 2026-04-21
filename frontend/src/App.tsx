@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import NewAssessment from './pages/NewAssessment';
 import AssessmentResult from './pages/AssessmentResult';
+import Analytics from './pages/Analytics';
 import { useAuthStore } from './store/auth.store';
 
 const queryClient = new QueryClient({
@@ -41,7 +42,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
           </Route>
 
-          {/* Demo results - accessible without login */}
+          {/* Demo results — accessible without login */}
           <Route
             path="/results"
             element={
@@ -63,6 +64,8 @@ export default function App() {
           <Route element={<ProtectedLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/new-assessment" element={<NewAssessment />} />
+            <Route path="/analytics" element={<Analytics />} />
+            {/* Both URL patterns for results: query-param style and path style */}
             <Route path="/assessment/:id" element={<AssessmentResult />} />
           </Route>
 

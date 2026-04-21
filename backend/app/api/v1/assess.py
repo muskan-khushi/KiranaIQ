@@ -38,6 +38,7 @@ async def create_assessment(
     await repo.create(
         {
             "assessment_id": assessment_id,
+            # current_user is a dict from the user_repo — use "id" key
             "officer_id": current_user["id"],
             "lat": lat,
             "lng": lng,
@@ -48,6 +49,7 @@ async def create_assessment(
             "years_in_operation": years_in_operation,
             "monthly_rent": monthly_rent,
             "status": "queued",
+            # GeoJSON Point for MongoDB 2dsphere peer-benchmarking queries
             "location": {"type": "Point", "coordinates": [lng, lat]},
         }
     )

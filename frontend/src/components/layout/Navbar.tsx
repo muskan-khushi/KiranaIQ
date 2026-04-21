@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, LayoutDashboard, PlusCircle, LogOut } from 'lucide-react';
+import { Activity, LayoutDashboard, PlusCircle, BarChart2, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 
 export default function Navbar() {
@@ -7,8 +7,9 @@ export default function Navbar() {
   const { email, logout } = useAuthStore();
 
   const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/new-assessment', label: 'New Assessment', icon: PlusCircle },
+    { to: '/dashboard',     label: 'Dashboard',       icon: LayoutDashboard },
+    { to: '/new-assessment', label: 'New Assessment',  icon: PlusCircle },
+    { to: '/analytics',     label: 'Analytics',        icon: BarChart2 },
   ];
 
   return (

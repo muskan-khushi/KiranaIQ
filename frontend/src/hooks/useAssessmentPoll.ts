@@ -3,16 +3,18 @@ import { getStatus, getResult } from '../api/assessment.api';
 import type { AssessmentResult, StatusResponse } from '../api/types';
 
 export function useAssessmentPoll(id: string | null) {
+  // TanStack Query v5: refetchInterval callback receives a Query object
+  // with { state: { data, status, ... } } — NOT the data directly.
   const { data: status } = useQuery<StatusResponse>({
     queryKey: ['status', id],
     queryFn: () => getStatus(id!),
+    enabled: !!id,
+    staleTime: 0,
     refetchInterval: (query) => {
       const s = query.state.data?.status;
       if (!s) return 3000;
       return s === 'completed' || s === 'failed' ? false : 3000;
     },
-    enabled: !!id,
-    staleTime: 0,
   });
 
   const { data: result, isLoading: resultLoading } = useQuery<AssessmentResult>({

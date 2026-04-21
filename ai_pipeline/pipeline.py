@@ -95,19 +95,23 @@ class KiranaIQPipeline:
             catchment=catchment,
         )
 
-        # Optional: temporal video analysis
+        # Temporal video analysis (optional) — use a mutable copy of flags
         if video_url:
             temporal_result = await self.temporal.analyze(video_url)
             if temporal_result.get("flag"):
-                fraud_result["flags"].append(temporal_result["flag"])
-                # Re-evaluate recommendation with video flag included
-                from ai_pipeline.fraud.cross_signal_validator import CrossSignalValidator
-                fraud_result["recommendation"] = CrossSignalValidator._recommend(
-                    None,  # static call workaround
-                    fraud_result["flags"],
-                    merged_vision.get("sdi", 0.5),
-                    footfall_score,
+                # Make a mutable copy before appending
+                fraud_result = dict(fraud_result)
+                fraud_result["flags"] = list(fraud_result["flags"]) + [temporal_result["flag"]]
+
+                # Re-evaluate recommendation with the extra flag included
+                high_count = sum(
+                    1 for f in fraud_result["flags"] if f.get("severity") == "high"
                 )
+                if high_count >= 2:
+                    fraud_result["recommendation"] = "reject"
+                elif high_count == 1 or len(fraud_result["flags"]) >= 3:
+                    fraud_result["recommendation"] = "needs_verification"
+
             merged_vision["temporal_stability_score"] = temporal_result.get(
                 "temporal_stability_score", 0.8
             )
@@ -159,6 +163,6 @@ class KiranaIQPipeline:
             "feature_attribution":   attribution,
             "peer_benchmark":        peer,
             "loan_suggestion":       loan,
-            # Extra fields for PDF service
+            # Extra fields for the server-side PDF service
             "margin_used":           point_estimate.get("margin_used"),
         }
