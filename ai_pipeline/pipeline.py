@@ -1,18 +1,18 @@
 """
 KiranaIQ Master Pipeline
-Runs all 5 stages in order, updating MongoDB stage status in real-time
-so the frontend progress tracker stays live.
+Runs all 5 stages in order, updating MongoDB stage status in real-time.
 
 Stage order:
   1. Vision   — Groq multimodal analysis of each image (parallel)
   2. Geo      — OSM footfall + competition + catchment (parallel)
-  3. Fraud    — Cross-signal tripwire validation
+  3. Fraud    — Cross-signal tripwire validation + optional video temporal analysis
   4. Fusion   — Sales estimation + uncertainty ranges + attribution
   5. Loan     — FOIR-based loan sizing + peer benchmarking
 """
 
 import asyncio
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
 
 from ai_pipeline.vision.shelf_analyzer import ShelfAnalyzer
@@ -24,23 +24,25 @@ from ai_pipeline.fusion.sales_estimator import SalesEstimator
 from ai_pipeline.fusion.uncertainty_engine import UncertaintyEngine
 from ai_pipeline.fusion.feature_attributor import FeatureAttributor
 from ai_pipeline.fraud.cross_signal_validator import CrossSignalValidator
+from ai_pipeline.fraud.temporal_analyzer import TemporalAnalyzer
 from ai_pipeline.loan.loan_sizer import LoanSizer
 from ai_pipeline.benchmarking.peer_comparator import PeerComparator
 
 
 class KiranaIQPipeline:
     def __init__(self):
-        self.shelf      = ShelfAnalyzer()
-        self.merger     = MultiImageMerger()
-        self.footfall   = FootfallScorer()
-        self.competition= CompetitionMapper()
-        self.catchment  = CatchmentAnalyzer()
-        self.estimator  = SalesEstimator()
-        self.uncertainty= UncertaintyEngine()
-        self.attributor = FeatureAttributor()
-        self.fraud      = CrossSignalValidator()
-        self.loan       = LoanSizer()
-        self.peer       = PeerComparator()
+        self.shelf       = ShelfAnalyzer()
+        self.merger      = MultiImageMerger()
+        self.footfall    = FootfallScorer()
+        self.competition = CompetitionMapper()
+        self.catchment   = CatchmentAnalyzer()
+        self.estimator   = SalesEstimator()
+        self.uncertainty = UncertaintyEngine()
+        self.attributor  = FeatureAttributor()
+        self.fraud       = CrossSignalValidator()
+        self.temporal    = TemporalAnalyzer()
+        self.loan        = LoanSizer()
+        self.peer        = PeerComparator()
 
     async def run(
         self,
@@ -53,7 +55,6 @@ class KiranaIQPipeline:
     ) -> dict:
         optional_inputs = optional_inputs or {}
 
-        # Lazy import repo (needs live DB connection inside Celery worker)
         from app.db.repositories.assessment_repo import AssessmentRepository
         repo = AssessmentRepository()
 
@@ -65,7 +66,6 @@ class KiranaIQPipeline:
             *[self.shelf.analyze(url) for url in image_urls],
             return_exceptions=True,
         )
-        # Replace exceptions with neutral defaults
         vision_results = [
             r if isinstance(r, dict) else self.shelf._normalize({})
             for r in vision_results
@@ -73,7 +73,7 @@ class KiranaIQPipeline:
         merged_vision = self.merger.merge(vision_results)
         await repo.update_stage(assessment_id, "vision", "done")
 
-        # ── Stage 2: Geo ──────────────────────────────────────────────────────
+        # ── Stage 2: Geo (parallel) ───────────────────────────────────────────
         await repo.update_stage(assessment_id, "geo", "running")
 
         footfall_score, comp_index, catchment = await asyncio.gather(
@@ -86,14 +86,32 @@ class KiranaIQPipeline:
         # ── Stage 3: Fraud ────────────────────────────────────────────────────
         await repo.update_stage(assessment_id, "fraud", "running")
 
-        # Pass competition index into vision dict so fraud validator can use it
         merged_vision["competition_index"] = comp_index
 
+        # Cross-signal fraud detection
         fraud_result = self.fraud.validate(
             vision=merged_vision,
             footfall=footfall_score,
             catchment=catchment,
         )
+
+        # Optional: temporal video analysis
+        if video_url:
+            temporal_result = await self.temporal.analyze(video_url)
+            if temporal_result.get("flag"):
+                fraud_result["flags"].append(temporal_result["flag"])
+                # Re-evaluate recommendation with video flag included
+                from ai_pipeline.fraud.cross_signal_validator import CrossSignalValidator
+                fraud_result["recommendation"] = CrossSignalValidator._recommend(
+                    None,  # static call workaround
+                    fraud_result["flags"],
+                    merged_vision.get("sdi", 0.5),
+                    footfall_score,
+                )
+            merged_vision["temporal_stability_score"] = temporal_result.get(
+                "temporal_stability_score", 0.8
+            )
+
         await repo.update_stage(assessment_id, "fraud", "done")
 
         # ── Stage 4: Fusion ───────────────────────────────────────────────────
@@ -115,8 +133,8 @@ class KiranaIQPipeline:
         }
 
         point_estimate = self.estimator.estimate(signals)
-        ranges = self.uncertainty.compute_ranges(point_estimate, signals, fraud_result)
-        attribution = self.attributor.compute(signals, point_estimate)
+        ranges         = self.uncertainty.compute_ranges(point_estimate, signals, fraud_result)
+        attribution    = self.attributor.compute(signals, point_estimate)
         await repo.update_stage(assessment_id, "fusion", "done")
 
         # ── Stage 5: Loan + Peer Benchmark ────────────────────────────────────
@@ -126,19 +144,21 @@ class KiranaIQPipeline:
         peer = await self.peer.compare(lat, lng, signals)
         await repo.update_stage(assessment_id, "loan", "done")
 
-        # ── Final result document ─────────────────────────────────────────────
+        # ── Final result ──────────────────────────────────────────────────────
         return {
-            "daily_sales_range":    list(ranges["daily_sales_range"]),
-            "monthly_revenue_range":list(ranges["monthly_revenue_range"]),
-            "monthly_income_range": list(ranges["monthly_income_range"]),
-            "confidence_score":     ranges["confidence_score"],
-            "recommendation":       fraud_result["recommendation"],
-            "risk_flags":           fraud_result["flags"],
-            "shelf_density_index":  merged_vision["sdi"],
-            "sku_diversity_score":  merged_vision["sku_diversity"],
-            "geo_footfall_score":   footfall_score,
-            "competition_index":    comp_index,
-            "feature_attribution":  attribution,
-            "peer_benchmark":       peer,
-            "loan_suggestion":      loan,
+            "daily_sales_range":     list(ranges["daily_sales_range"]),
+            "monthly_revenue_range": list(ranges["monthly_revenue_range"]),
+            "monthly_income_range":  list(ranges["monthly_income_range"]),
+            "confidence_score":      ranges["confidence_score"],
+            "recommendation":        fraud_result["recommendation"],
+            "risk_flags":            fraud_result["flags"],
+            "shelf_density_index":   merged_vision["sdi"],
+            "sku_diversity_score":   merged_vision["sku_diversity"],
+            "geo_footfall_score":    footfall_score,
+            "competition_index":     comp_index,
+            "feature_attribution":   attribution,
+            "peer_benchmark":        peer,
+            "loan_suggestion":       loan,
+            # Extra fields for PDF service
+            "margin_used":           point_estimate.get("margin_used"),
         }
