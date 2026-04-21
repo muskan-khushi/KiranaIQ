@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
+from fastapi.responses import Response
 from typing import List, Optional
 from app.db.repositories.assessment_repo import AssessmentRepository
 from app.services.storage_service import store_many, store_upload
@@ -26,10 +27,9 @@ async def create_assessment(
 
     assessment_id = str(uuid.uuid4())
 
-    # Store images (local dev or S3)
     image_urls = await store_many(images, assessment_id)
     video_url = None
-    if video:
+    if video and video.filename:
         video_url = await store_upload(
             video, prefix=f"assessments/{assessment_id}/video"
         )
@@ -48,12 +48,10 @@ async def create_assessment(
             "years_in_operation": years_in_operation,
             "monthly_rent": monthly_rent,
             "status": "queued",
-            # GeoJSON point for peer-benchmarking geo queries
             "location": {"type": "Point", "coordinates": [lng, lat]},
         }
     )
 
-    # Enqueue Celery task
     from app.tasks.assess_task import run_assessment_pipeline
     run_assessment_pipeline.delay(assessment_id)
 
@@ -73,6 +71,34 @@ async def get_status(
         "status": doc["status"],
         "pipeline_stages": doc.get("pipeline_stages", []),
     }
+
+
+@router.get("/{assessment_id}/pdf")
+async def download_pdf(
+    assessment_id: str, current_user: dict = Depends(get_current_user)
+):
+    """Generate and stream a one-page credit memo PDF."""
+    repo = AssessmentRepository()
+    doc = await repo.find_by_id(assessment_id)
+    if not doc:
+        raise HTTPException(404, "Assessment not found")
+    if doc.get("status") != "completed":
+        raise HTTPException(400, "Assessment is not yet completed")
+
+    try:
+        from app.services.pdf_service import generate_credit_memo
+        pdf_bytes = generate_credit_memo(doc)
+    except Exception as e:
+        raise HTTPException(500, f"PDF generation failed: {e}")
+
+    short_id = assessment_id[:8].upper()
+    filename = f"KiranaIQ_Memo_{short_id}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{assessment_id}")

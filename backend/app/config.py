@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # Auth
-    JWT_SECRET: str = "dev-secret-change-in-production"
+    JWT_SECRET: str = "dev-secret-change-in-production-min-32-chars"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-south-1"
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
+
+    # Business constants (referenced in tests and pipeline)
+    WORKING_DAYS_MONTH: int = 26
+    FOIR: float = 0.45
+    INTEREST_RATE_PA: float = 0.18
 
 
 settings = Settings()
