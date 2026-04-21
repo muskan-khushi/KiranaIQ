@@ -20,12 +20,19 @@ class SalesEstimator:
     WORKING_DAYS_MONTH = 26
 
     def estimate(self, signals: dict) -> dict:
-        inv_value = signals.get("inventory_value_est", 50000)
-        turnover = signals.get("avg_daily_turnover", 0.10)
-        geo_score = signals.get("geo_footfall_score", 50)
-        sdi = signals.get("shelf_density_index", 0.5)
-        shop_sqft = signals.get("shop_size_sqft")
-        years_op = signals.get("years_in_operation", 0)
+        # Use .get with safe defaults — never crash on missing/None signals
+        inv_value = signals.get("inventory_value_est") or 50000
+        turnover  = signals.get("avg_daily_turnover") or 0.10
+        geo_score = signals.get("geo_footfall_score") or 50
+        sdi       = signals.get("shelf_density_index") or 0.5
+        shop_sqft = signals.get("shop_size_sqft")   # None = not provided
+        years_op  = signals.get("years_in_operation")  # None = not provided
+
+        # Coerce to float safely
+        inv_value = float(inv_value)
+        turnover  = float(turnover)
+        geo_score = float(geo_score)
+        sdi       = float(sdi)
 
         # ── Path A: Working Capital Cycle ─────────────────────────────────────
         daily_wc = inv_value * turnover
@@ -35,21 +42,24 @@ class SalesEstimator:
         daily_geo *= 0.7 + 0.6 * sdi  # store quality multiplier
 
         # ── Weighted fusion ───────────────────────────────────────────────────
-        if shop_sqft:
-            daily_size = shop_sqft * self.REV_PER_SQFT_DAY
+        if shop_sqft and float(shop_sqft) > 0:
+            daily_size = float(shop_sqft) * self.REV_PER_SQFT_DAY
             daily = 0.40 * daily_wc + 0.25 * daily_geo + 0.35 * daily_size
         else:
             daily = 0.55 * daily_wc + 0.45 * daily_geo
 
         # ── Stability boost for established stores ────────────────────────────
-        if years_op and years_op >= 3:
+        if years_op is not None and float(years_op) >= 3:
             daily *= 1.05
+
+        # Sanity clamp: Indian kirana range ₹500–₹1,00,000/day
+        daily = max(500.0, min(100000.0, daily))
 
         monthly_revenue = daily * self.WORKING_DAYS_MONTH
 
         # ── Margin: 8–15% depending on category diversity ─────────────────────
-        cat_diversity = signals.get("category_mix", {}).get("category_diversity_score", 0.5)
-        margin = 0.08 + cat_diversity * 0.07
+        cat_diversity = (signals.get("category_mix") or {}).get("category_diversity_score", 0.5)
+        margin = 0.08 + float(cat_diversity) * 0.07
         monthly_income = monthly_revenue * margin
 
         return {
@@ -60,5 +70,5 @@ class SalesEstimator:
             # Expose paths for explainability
             "path_a_daily": round(daily_wc, 2),
             "path_b_daily": round(daily_geo, 2),
-            "path_c_daily": round(shop_sqft * self.REV_PER_SQFT_DAY, 2) if shop_sqft else None,
+            "path_c_daily": round(float(shop_sqft) * self.REV_PER_SQFT_DAY, 2) if shop_sqft else None,
         }

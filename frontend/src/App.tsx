@@ -28,8 +28,23 @@ function ProtectedLayout() {
   );
 }
 
-function PublicLayout() {
-  return <Outlet />;
+// Minimal nav wrapper for public result pages
+function PublicResultLayout() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2 font-display font-bold text-lg">
+            Kirana<span className="text-accent">IQ</span>
+          </a>
+          <a href="/login" className="text-sm text-accent hover:underline font-medium">
+            Sign In →
+          </a>
+        </div>
+      </div>
+      <Outlet />
+    </div>
+  );
 }
 
 export default function App() {
@@ -38,34 +53,20 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
-          <Route element={<PublicLayout />}>
-            <Route path="/login" element={<Login />} />
-          </Route>
+          <Route path="/login" element={<Login />} />
 
-          {/* Demo results — accessible without login */}
-          <Route
-            path="/results"
-            element={
-              <div className="min-h-screen bg-background">
-                <div className="border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-50">
-                  <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-                    <a href="/" className="flex items-center gap-2 font-display font-bold text-lg">
-                      Kirana<span className="text-accent">IQ</span>
-                    </a>
-                    <a href="/login" className="text-sm text-accent hover:underline font-medium">Sign In →</a>
-                  </div>
-                </div>
-                <AssessmentResult />
-              </div>
-            }
-          />
+          {/* Demo results — accessible without login (query param style) */}
+          <Route element={<PublicResultLayout />}>
+            <Route path="/results" element={<AssessmentResult />} />
+          </Route>
 
           {/* Protected routes */}
           <Route element={<ProtectedLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/new-assessment" element={<NewAssessment />} />
             <Route path="/analytics" element={<Analytics />} />
-            {/* Both URL patterns for results: query-param style and path style */}
+            {/* Both URL patterns for results: query-param (?id=...) and path-style (/assessment/:id) */}
+            <Route path="/results" element={<AssessmentResult />} />
             <Route path="/assessment/:id" element={<AssessmentResult />} />
           </Route>
 

@@ -4,7 +4,8 @@ Queries OSM for nearby grocery/kirana stores and returns a competition density i
 0 = no competition, 1 = saturated market.
 """
 import httpx
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../backend"))
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -12,7 +13,8 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
 class CompetitionMapper:
     async def density(self, lat: float, lng: float, radius: int = 500) -> float:
-        cache_key = f"geo:competition:{round(lat,4)}:{round(lng,4)}"
+        cache_key = f"geo:competition:{round(lat, 4)}:{round(lng, 4)}"
+        redis = None
         try:
             from app.db.redis import get_redis
             redis = get_redis()
@@ -24,11 +26,11 @@ class CompetitionMapper:
 
         index = await self._query(lat, lng, radius)
 
-        try:
-            if redis:
+        if redis is not None:
+            try:
                 await redis.setex(cache_key, 21600, str(index))
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         return index
 
@@ -53,6 +55,6 @@ out count;"""
             print(f"[competition_mapper] Overpass error: {e}")
             return 0.3  # neutral fallback
 
-        # Sigmoid-style normalization: 0 stores=0, 5 stores≈0.7, 10+ stores≈1.0
+        # Sigmoid-style normalization: 0 stores=0, 5 stores≈0.5, 10+ stores≈1.0
         index = round(min(1.0, count / 10.0), 3)
         return index

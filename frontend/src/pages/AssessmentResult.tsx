@@ -1,5 +1,5 @@
-import { useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { useSearchParams, useParams, Link } from 'react-router-dom';
+import { ArrowLeft, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAssessmentPoll } from '../hooks/useAssessmentPoll';
 import { MOCK_ASSESSMENT_RESULT } from '../utils/mockData';
 import ProgressTracker from '../components/assessment/ProgressTracker';
@@ -14,22 +14,27 @@ import ExportPDFButton from '../components/results/ExportPDFButton';
 import type { AssessmentResult } from '../api/types';
 
 
-
-
-export default function AssessmentResult() {
+export default function AssessmentResultPage() {
   const [params] = useSearchParams();
-  const assessmentId = params.get('id');
+  const routeParams = useParams<{ id?: string }>();
+
+  // Support both ?id=... query param and /assessment/:id path param
+  const assessmentId = params.get('id') ?? routeParams.id ?? null;
   const demo = params.get('demo') === '1';
 
+  // Always call hook — pass null when we want it disabled
+  // (hook internally skips fetching when id is null)
   const { status, result } = useAssessmentPoll(demo ? null : assessmentId);
 
-  // Use demo data when no ID or demo flag
+  // Use demo data when demo flag is set
   const data: AssessmentResult | null = demo
     ? MOCK_ASSESSMENT_RESULT
     : result ?? null;
 
-  const isProcessing = !demo && (!status || status.status === 'queued' || status.status === 'processing');
+  const isConnecting = !demo && assessmentId && !status;
+  const isProcessing = !demo && status && (status.status === 'queued' || status.status === 'processing');
   const isFailed = !demo && status?.status === 'failed';
+  const isCompleted = demo || (status?.status === 'completed' && data != null);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -49,17 +54,32 @@ export default function AssessmentResult() {
             {data?.store_address && (
               <p className="text-sm text-muted mt-0.5">{data.store_address}</p>
             )}
+            {assessmentId && !demo && (
+              <p className="text-xs font-mono text-muted mt-0.5">#{assessmentId.slice(0, 8).toUpperCase()}</p>
+            )}
           </div>
         </div>
         {data && data.status === 'completed' && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted hidden md:block">
-              {data.created_at ? new Date(data.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+              {data.created_at
+                ? new Date(data.created_at).toLocaleDateString('en-IN', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                  })
+                : ''}
             </span>
             <ExportPDFButton data={data} />
           </div>
         )}
       </div>
+
+      {/* Connecting state (first load, before any status response) */}
+      {isConnecting && (
+        <div className="max-w-xl mx-auto flex flex-col items-center gap-4 py-16">
+          <RefreshCw size={32} className="text-accent animate-spin" />
+          <p className="text-muted text-sm">Connecting to pipeline...</p>
+        </div>
+      )}
 
       {/* Processing state */}
       {isProcessing && status && (
@@ -74,28 +94,29 @@ export default function AssessmentResult() {
         </div>
       )}
 
-      {/* Initial loading (no status yet) */}
-      {!demo && !status && assessmentId && (
-        <div className="max-w-xl mx-auto flex flex-col items-center gap-4 py-16">
-          <RefreshCw size={32} className="text-accent animate-spin-slow" />
-          <p className="text-muted text-sm">Connecting to pipeline...</p>
-        </div>
-      )}
-
       {/* Failed state */}
       {isFailed && (
         <div className="max-w-xl mx-auto text-center py-12">
           <div className="w-16 h-16 bg-danger-light rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">⚠️</span>
+            <AlertTriangle size={28} className="text-danger" />
           </div>
           <h2 className="font-display text-xl font-bold text-primary mb-2">Pipeline Failed</h2>
-          <p className="text-muted text-sm mb-6">The assessment could not be completed. Please try again.</p>
-          <Link to="/new-assessment" className="btn-primary">Start New Assessment</Link>
+          <p className="text-muted text-sm mb-6">
+            The assessment could not be completed. Please try again.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link to="/new-assessment" className="px-4 py-2 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent-dark transition-colors">
+              Start New Assessment
+            </Link>
+            <Link to="/dashboard" className="px-4 py-2 bg-surface-2 text-secondary rounded-xl text-sm font-semibold hover:bg-border transition-colors border border-border">
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       )}
 
       {/* Results */}
-      {data && data.status === 'completed' && (
+      {isCompleted && data && (
         <div className="space-y-6 animate-in">
           {/* Row 1: Cash flow (wide) + Confidence gauge */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -133,17 +154,28 @@ export default function AssessmentResult() {
           </div>
 
           {/* Pipeline summary */}
-          <div className="card p-4 animate-in" style={{ animationDelay: '420ms' }}>
-            <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-3">Pipeline Stages</p>
-            <div className="flex flex-wrap gap-2">
-              {data.pipeline_stages.map(stage => (
-                <div key={stage.stage} className="flex items-center gap-1.5 text-xs bg-success-light text-success border border-success/20 px-3 py-1.5 rounded-full font-medium">
-                  <span>✓</span>
-                  <span className="capitalize">{stage.stage}</span>
-                </div>
-              ))}
+          {data.pipeline_stages && data.pipeline_stages.length > 0 && (
+            <div className="card p-4 animate-in" style={{ animationDelay: '420ms' }}>
+              <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-3">Pipeline Stages</p>
+              <div className="flex flex-wrap gap-2">
+                {data.pipeline_stages.map(stage => (
+                  <div
+                    key={stage.stage}
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium border ${
+                      stage.status === 'done'
+                        ? 'bg-success-light text-success border-success/20'
+                        : stage.status === 'failed'
+                          ? 'bg-danger-light text-danger border-danger/20'
+                          : 'bg-surface-2 text-muted border-border'
+                    }`}
+                  >
+                    <span>{stage.status === 'done' ? '✓' : stage.status === 'failed' ? '✗' : '○'}</span>
+                    <span className="capitalize">{stage.stage}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -152,10 +184,16 @@ export default function AssessmentResult() {
         <div className="text-center py-16">
           <p className="text-muted text-sm mb-4">No assessment ID found.</p>
           <div className="flex gap-3 justify-center">
-            <Link to="/new-assessment" className="px-4 py-2 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent-dark transition-colors">
+            <Link
+              to="/new-assessment"
+              className="px-4 py-2 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent-dark transition-colors"
+            >
               Start New Assessment
             </Link>
-            <Link to="/results?demo=1" className="px-4 py-2 bg-surface-2 text-secondary rounded-xl text-sm font-semibold hover:bg-border transition-colors border border-border">
+            <Link
+              to="/results?demo=1"
+              className="px-4 py-2 bg-surface-2 text-secondary rounded-xl text-sm font-semibold hover:bg-border transition-colors border border-border"
+            >
               View Demo Results
             </Link>
           </div>

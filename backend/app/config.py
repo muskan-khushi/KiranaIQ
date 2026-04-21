@@ -32,5 +32,16 @@ class Settings(BaseSettings):
     FOIR: float = 0.45
     INTEREST_RATE_PA: float = 0.18
 
+    def validate_for_production(self) -> list[str]:
+        """Returns list of warnings for missing critical config."""
+        warnings = []
+        if not self.GROQ_API_KEY or self.GROQ_API_KEY.startswith("gsk_..."):
+            warnings.append("GROQ_API_KEY is not set — vision analysis will use fallback values")
+        if self.JWT_SECRET == "dev-secret-change-in-production-min-32-chars":
+            warnings.append("JWT_SECRET is using the default dev value — change before production")
+        if self.STORAGE_BACKEND == "s3" and not self.AWS_ACCESS_KEY_ID:
+            warnings.append("STORAGE_BACKEND=s3 but AWS_ACCESS_KEY_ID is not set")
+        return warnings
+
 
 settings = Settings()

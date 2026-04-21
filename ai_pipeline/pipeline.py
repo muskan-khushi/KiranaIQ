@@ -53,7 +53,11 @@ class KiranaIQPipeline:
         video_url: str | None = None,
         optional_inputs: dict | None = None,
     ) -> dict:
-        optional_inputs = optional_inputs or {}
+        # Strip None values so they never corrupt numeric calculations
+        optional_inputs = {
+            k: v for k, v in (optional_inputs or {}).items()
+            if v is not None
+        }
 
         from app.db.repositories.assessment_repo import AssessmentRepository
         repo = AssessmentRepository()
@@ -62,14 +66,19 @@ class KiranaIQPipeline:
         await repo.update(assessment_id, {"status": "processing"})
         await repo.update_stage(assessment_id, "vision", "running")
 
-        vision_results = await asyncio.gather(
-            *[self.shelf.analyze(url) for url in image_urls],
-            return_exceptions=True,
-        )
-        vision_results = [
-            r if isinstance(r, dict) else self.shelf._normalize({})
-            for r in vision_results
-        ]
+        if image_urls:
+            vision_results = await asyncio.gather(
+                *[self.shelf.analyze(url) for url in image_urls],
+                return_exceptions=True,
+            )
+            vision_results = [
+                r if isinstance(r, dict) else self.shelf._normalize({})
+                for r in vision_results
+            ]
+        else:
+            # No images — use empty fallback (will trigger fraud flag)
+            vision_results = []
+
         merged_vision = self.merger.merge(vision_results)
         await repo.update_stage(assessment_id, "vision", "done")
 
@@ -95,11 +104,10 @@ class KiranaIQPipeline:
             catchment=catchment,
         )
 
-        # Temporal video analysis (optional) — use a mutable copy of flags
+        # Temporal video analysis (optional)
         if video_url:
             temporal_result = await self.temporal.analyze(video_url)
             if temporal_result.get("flag"):
-                # Make a mutable copy before appending
                 fraud_result = dict(fraud_result)
                 fraud_result["flags"] = list(fraud_result["flags"]) + [temporal_result["flag"]]
 
@@ -121,6 +129,7 @@ class KiranaIQPipeline:
         # ── Stage 4: Fusion ───────────────────────────────────────────────────
         await repo.update_stage(assessment_id, "fusion", "running")
 
+        # Build signals dict — only include optional_inputs that have real values
         signals = {
             "shelf_density_index":  merged_vision["sdi"],
             "sku_diversity_score":  merged_vision["sku_diversity"],
@@ -133,8 +142,9 @@ class KiranaIQPipeline:
             "geo_footfall_score":   footfall_score,
             "competition_index":    comp_index,
             "catchment_score":      catchment["score"],
-            **optional_inputs,
         }
+        # Only merge non-None optional inputs
+        signals.update(optional_inputs)
 
         point_estimate = self.estimator.estimate(signals)
         ranges         = self.uncertainty.compute_ranges(point_estimate, signals, fraud_result)

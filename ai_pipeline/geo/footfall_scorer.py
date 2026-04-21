@@ -7,7 +7,8 @@ Redis-cached for 6 hours to avoid hammering the API.
 import math
 import json
 import httpx
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../backend"))
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -35,7 +36,8 @@ POI_WEIGHTS = {
 class FootfallScorer:
     async def score(self, lat: float, lng: float, radius: int = 500) -> float:
         # Try Redis cache first
-        cache_key = f"geo:footfall:{round(lat,4)}:{round(lng,4)}"
+        cache_key = f"geo:footfall:{round(lat, 4)}:{round(lng, 4)}"
+        redis = None
         try:
             from app.db.redis import get_redis
             redis = get_redis()
@@ -43,16 +45,17 @@ class FootfallScorer:
             if cached:
                 return float(cached)
         except Exception:
-            pass  # Redis unavailable — continue without cache
+            redis = None  # Redis unavailable — continue without cache
 
         raw_score = await self._query_overpass(lat, lng, radius)
         score = round(min(100.0, raw_score), 2)
 
         # Cache for 6 hours
-        try:
-            await redis.setex(cache_key, 21600, str(score))
-        except Exception:
-            pass
+        if redis is not None:
+            try:
+                await redis.setex(cache_key, 21600, str(score))
+            except Exception:
+                pass
 
         return score
 

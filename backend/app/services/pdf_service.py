@@ -57,10 +57,25 @@ def _rec_bg(rec: str) -> colors.Color:
     }.get(rec, SURFACE)
 
 
+def _color_hex(c: colors.Color) -> str:
+    """Safe hex extraction that works across ReportLab versions."""
+    try:
+        # ReportLab >= 3.x
+        return c.hexval()[1:]  # strip leading '#'
+    except AttributeError:
+        try:
+            # Fallback: use rgb values
+            r = int(c.red * 255)
+            g = int(c.green * 255)
+            b = int(c.blue * 255)
+            return f"{r:02x}{g:02x}{b:02x}"
+        except Exception:
+            return "000000"
+
+
 def generate_credit_memo(doc: dict) -> bytes:
     """
     Generate a PDF credit memo from a completed assessment MongoDB document.
-
     Returns raw PDF bytes, ready to be streamed as application/pdf.
     """
     buf = io.BytesIO()
@@ -133,9 +148,10 @@ def generate_credit_memo(doc: dict) -> bytes:
     rec = doc.get("recommendation", "needs_verification")
     conf_pct = f"{int((doc.get('confidence_score') or 0) * 100)}%"
     rec_c = _rec_color(rec)
+    rec_hex = _color_hex(rec_c)
 
     banner = Table(
-        [[Paragraph(f'<font color="#{rec_c.hexval()[1:]}">{_rec_label(rec)}</font>', CENT),
+        [[Paragraph(f'<font color="#{rec_hex}">{_rec_label(rec)}</font>', CENT),
           Paragraph(f"Confidence Score<br/><font size='18'><b>{conf_pct}</b></font>",
                     style("CC", fontName="Helvetica", fontSize=9, textColor=MUTED, alignment=TA_CENTER, leading=18))]],
         colWidths=["50%", "50%"],
@@ -214,7 +230,8 @@ def generate_credit_memo(doc: dict) -> bytes:
     loan = doc.get("loan_suggestion")
     if loan:
         story.append(Paragraph("Loan Recommendation", SECT))
-        emi = loan.get("monthly_emi_range", [0, 0])
+        # monthly_emi_range can be a tuple or list — normalize
+        emi = list(loan.get("monthly_emi_range", [0, 0]))
         loan_rows = [
             ["Suggested Loan Range", _inr_range(loan["min_loan"], loan["max_loan"])],
             ["Tenure", f"{loan.get('suggested_tenure_months', 18)} months"],
@@ -246,12 +263,13 @@ def generate_credit_memo(doc: dict) -> bytes:
         for flag in flags:
             sev = flag.get("severity", "medium")
             sc = _sev_color(sev)
+            sc_hex = _color_hex(sc)
             ft = Table(
                 [
-                    [Paragraph(f'<font color="#{sc.hexval()[1:]}"><b>[{sev.upper()}]</b></font> '
-                               f'{flag.get("code","").replace("_"," ").title()}', BODY)],
+                    [Paragraph(f'<font color="#{sc_hex}"><b>[{sev.upper()}]</b></font> '
+                               f'{flag.get("code", "").replace("_", " ").title()}', BODY)],
                     [Paragraph(flag.get("description", ""), TINY)],
-                    [Paragraph(f'<b>Action:</b> {flag.get("recommended_action","")}', TINY)],
+                    [Paragraph(f'<b>Action:</b> {flag.get("recommended_action", "")}', TINY)],
                 ],
                 colWidths=["100%"],
             )
@@ -282,7 +300,8 @@ def generate_credit_memo(doc: dict) -> bytes:
     stages = doc.get("pipeline_stages", [])
     if stages:
         done = [s["stage"].title() for s in stages if s.get("status") == "done"]
-        story.append(Paragraph(f"Pipeline completed: {' \u00b7 '.join(done)}", TINY))
+        if done:
+            story.append(Paragraph(f"Pipeline completed: {' \u00b7 '.join(done)}", TINY))
         story.append(Spacer(1, 6))
 
     # ── Disclaimer ────────────────────────────────────────────────────────────
