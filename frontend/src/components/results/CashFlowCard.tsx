@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { formatRange, formatINR } from '../../utils/formatCurrency';
+import { formatRange } from '../../utils/formatCurrency';
 import { recommendationConfig } from '../../utils/riskColors';
 import type { AssessmentResult } from '../../api/types';
 

@@ -2,9 +2,9 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { MapPin, Store, Calendar, IndianRupee, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
-import ImageUploadZone from '../assessment/ImageUploadZone';
-import GpsCapture from '../assessment/GpsCapture';
-import { submitAssessment } from '../../api/assessment.api';
+import ImageUploadZone from '../components/assessment/ImageUploadZone';
+import GpsCapture from '../components/assessment/GpsCapture';
+import { submitAssessment } from '../api/assessment.api';
 
 export default function NewAssessment() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function NewAssessment() {
 
   const mutation = useMutation({
     mutationFn: (fd: FormData) => submitAssessment(fd),
-    onSuccess: (data) => {
+    onSuccess: (data: { assessment_id: string }) => {
       navigate(`/results?id=${data.assessment_id}`);
     },
   });

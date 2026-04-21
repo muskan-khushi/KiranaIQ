@@ -1,39 +1,20 @@
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { useAssessmentPoll } from '../../hooks/useAssessmentPoll';
-import { MOCK_ASSESSMENT_RESULT } from '../../utils/mockData';
-import ProgressTracker from '../assessment/ProgressTracker';
-import CashFlowCard from './CashFlowCard';
-import ConfidenceGauge from './ConfidenceGauge';
-import RiskFlagPanel from './RiskFlagPanel';
-import FeatureBreakdown from './FeatureBreakdown';
-import PeerBenchmarkChart from './PeerBenchmarkChart';
-import GeoMapView from './GeoMapView';
-import LoanSuggestionBox from './LoanSuggestionBox';
-import ExportPDFButton from './ExportPDFButton';
-import type { AssessmentResult } from '../../api/types';
+import { useAssessmentPoll } from '../hooks/useAssessmentPoll';
+import { MOCK_ASSESSMENT_RESULT } from '../utils/mockData';
+import ProgressTracker from '../components/assessment/ProgressTracker';
+import CashFlowCard from '../components/results/CashFlowCard';
+import ConfidenceGauge from '../components/results/ConfidenceGauge';
+import RiskFlagPanel from '../components/results/RiskFlagPanel';
+import FeatureBreakdown from '../components/results/FeatureBreakdown';
+import PeerBenchmarkChart from '../components/results/PeerBenchmarkChart';
+import GeoMapView from '../components/results/GeoMapView';
+import LoanSuggestionBox from '../components/results/LoanSuggestionBox';
+import ExportPDFButton from '../components/results/ExportPDFButton';
+import type { AssessmentResult } from '../api/types';
 
-// Skeleton component for loading state
-function Skeleton({ className }: { className?: string }) {
-  return <div className={`skeleton rounded-xl ${className ?? ''}`} />;
-}
 
-function ResultsSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2"><Skeleton className="h-64" /></div>
-        <Skeleton className="h-64" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Skeleton className="h-48" />
-        <Skeleton className="h-48" />
-        <Skeleton className="h-64" />
-        <Skeleton className="h-64" />
-      </div>
-    </div>
-  );
-}
+
 
 export default function AssessmentResult() {
   const [params] = useSearchParams();

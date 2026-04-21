@@ -4,7 +4,7 @@ import Navbar from './components/layout/Navbar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import NewAssessment from './pages/NewAssessment';
-import AssessmentResult from './components/results/AssessmentResult';
+import AssessmentResult from './pages/AssessmentResult';
 import { useAuthStore } from './store/auth.store';
 
 const queryClient = new QueryClient({

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Store, AlertCircle } from 'lucide-react';
+import { Store, AlertCircle } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface Props {

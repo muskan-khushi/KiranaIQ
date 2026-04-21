@@ -1,4 +1,4 @@
-import { Users, TrendingUp } from 'lucide-react';
+import { Users } from 'lucide-react';
 import type { AssessmentResult } from '../../api/types';
 
 interface Props {
