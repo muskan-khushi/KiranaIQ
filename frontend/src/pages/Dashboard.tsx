@@ -7,7 +7,7 @@ import {
   IndianRupee, ShieldCheck, MapPin, Cpu
 } from 'lucide-react';
 import { listAssessments } from '../api/assessment.api';
-import { formatRangeLakh, formatPercent, formatLakh } from '../utils/formatCurrency';
+import { formatRangeLakh, formatLakh } from '../utils/formatCurrency';
 import type { AssessmentResult, Recommendation } from '../api/types';
 
 // ─── Animated counter ─────────────────────────────────────────────────────────

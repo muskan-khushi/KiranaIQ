@@ -1,5 +1,5 @@
 import { useSearchParams, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, AlertTriangle, Download } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertTriangle} from 'lucide-react';
 import { useAssessmentPoll } from '../hooks/useAssessmentPoll';
 import { MOCK_ASSESSMENT_RESULT } from '../utils/mockData';
 import ProgressTracker from '../components/assessment/ProgressTracker';

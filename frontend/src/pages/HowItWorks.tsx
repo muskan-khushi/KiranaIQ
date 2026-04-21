@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Eye, MapPin, ShieldCheck, Zap, Landmark,
-  ChevronRight, ArrowRight, CheckCircle2,
+  ChevronRight, CheckCircle2,
   TrendingUp, BarChart2, Layers, Database, Cpu, Globe,
   ArrowUpRight
 } from 'lucide-react';
