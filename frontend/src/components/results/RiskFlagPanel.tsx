@@ -1,60 +1,99 @@
-import { AlertTriangle, ShieldCheck, Info } from 'lucide-react';
-import { MOCK_ASSESSMENT_RESULT } from '../../utils/mockData';
+import { useState } from 'react';
+import { AlertTriangle, ShieldCheck, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { getSeverityConfig } from '../../utils/riskColors';
+import type { AssessmentResult, RiskFlag } from '../../api/types';
 
-export default function RiskFlagPanel() {
-  const flags = MOCK_ASSESSMENT_RESULT.risk_flags;
+interface Props {
+  data: AssessmentResult;
+}
+
+export default function RiskFlagPanel({ data }: Props) {
+  const flags = data.risk_flags ?? [];
 
   if (flags.length === 0) {
     return (
-      <div className="w-full h-full bg-success/5 border border-success/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-        <ShieldCheck className="text-success mb-3" size={40} />
-        <h3 className="text-lg font-semibold text-primary">No Risk Flags Detected</h3>
-        <p className="text-sm text-muted mt-1">Cross-signal validation passed all consistency checks.</p>
+      <div className="card p-6 flex flex-col items-center justify-center text-center gap-3 min-h-[180px]">
+        <div className="w-14 h-14 bg-success-light rounded-full flex items-center justify-center">
+          <ShieldCheck size={28} className="text-success" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-primary">No Risk Flags Detected</h3>
+          <p className="text-sm text-muted mt-1">All 5 cross-signal tripwires passed successfully.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap justify-center mt-1">
+          {['Inventory ✓', 'Consistency ✓', 'Coverage ✓', 'SKU-Geo ✓', 'Competition ✓'].map(t => (
+            <span key={t} className="text-xs bg-success-light text-success border border-success/20 px-2 py-0.5 rounded-full font-medium">{t}</span>
+          ))}
+        </div>
       </div>
     );
   }
 
+  const highCount = flags.filter(f => f.severity === 'high').length;
+  const medCount = flags.filter(f => f.severity === 'medium').length;
+
   return (
-    <div className="w-full h-full">
-      <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Fraud & Risk Tripwires</h2>
-      
+    <div className="card p-6">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-semibold text-muted uppercase tracking-widest">Risk Flags</p>
+        <div className="flex gap-2">
+          {highCount > 0 && (
+            <span className="text-xs font-bold bg-danger-light text-danger border border-danger/20 px-2 py-0.5 rounded-full">
+              {highCount} High
+            </span>
+          )}
+          {medCount > 0 && (
+            <span className="text-xs font-bold bg-warning-light text-warning border border-warning/20 px-2 py-0.5 rounded-full">
+              {medCount} Medium
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="space-y-3">
         {flags.map((flag, idx) => (
-          <div 
-            key={idx} 
-            className={`p-4 rounded-xl border flex gap-3
-              ${flag.severity === 'high' ? 'bg-danger/5 border-danger/20' : 
-                flag.severity === 'medium' ? 'bg-warning/5 border-warning/20' : 
-                'bg-primary/5 border-primary/10'}`}
-          >
-            <div className="mt-0.5">
-              {flag.severity === 'high' ? <AlertTriangle className="text-danger" size={20} /> :
-               flag.severity === 'medium' ? <AlertTriangle className="text-warning" size={20} /> :
-               <Info className="text-primary" size={20} />}
-            </div>
-            
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-sm font-semibold text-primary capitalize">
-                  {flag.code.replace(/_/g, ' ')}
-                </h4>
-                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm
-                  ${flag.severity === 'high' ? 'bg-danger/10 text-danger' : 
-                    flag.severity === 'medium' ? 'bg-warning/10 text-warning' : 
-                    'bg-primary/10 text-primary'}`}>
-                  {flag.severity}
-                </span>
-              </div>
-              <p className="text-sm text-muted mb-2">{flag.description}</p>
-              <div className="bg-surface/50 rounded p-2 border border-border/50">
-                <p className="text-xs font-medium text-primary">
-                  <span className="text-muted mr-1">Action:</span> {flag.recommended_action}
-                </p>
-              </div>
-            </div>
-          </div>
+          <FlagCard key={idx} flag={flag} defaultOpen={idx === 0} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function FlagCard({ flag, defaultOpen }: { flag: RiskFlag; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const cfg = getSeverityConfig(flag.severity);
+
+  const Icon = flag.severity === 'high' ? AlertTriangle : flag.severity === 'medium' ? AlertTriangle : Info;
+
+  return (
+    <div className={`rounded-xl border overflow-hidden transition-all ${cfg.bg} ${cfg.border}`}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 p-3.5 text-left"
+      >
+        <Icon size={18} className={cfg.text} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-primary capitalize truncate">
+              {flag.code.replace(/_/g, ' ')}
+            </span>
+            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.text} border ${cfg.border} flex-shrink-0`}>
+              {flag.severity}
+            </span>
+          </div>
+        </div>
+        {open ? <ChevronUp size={16} className="text-muted flex-shrink-0" /> : <ChevronDown size={16} className="text-muted flex-shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2 border-t border-black/5">
+          <p className="text-sm text-secondary mt-3">{flag.description}</p>
+          <div className="flex items-start gap-2 p-2.5 bg-white/60 rounded-lg border border-white/80">
+            <span className="text-xs font-semibold text-muted uppercase mt-0.5 flex-shrink-0">Action:</span>
+            <p className="text-xs font-medium text-primary">{flag.recommended_action}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

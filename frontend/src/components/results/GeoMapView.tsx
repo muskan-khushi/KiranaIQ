@@ -1,62 +1,76 @@
 import { useState } from 'react';
-// @ts-ignore
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Store } from 'lucide-react';
+import { MapPin, Store, AlertCircle } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface Props {
   lat: number;
   lng: number;
+  storeName?: string;
 }
 
-export default function GeoMapView({ lat, lng }: Props) {
-  // Fallback for UI testing if you haven't put your token in .env yet
-  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+export default function GeoMapView({ lat, lng, storeName }: Props) {
+  const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
   const [viewState, setViewState] = useState({
-    longitude: lng,
-    latitude: lat,
-    zoom: 15
+    longitude: lng ?? 77.2310,
+    latitude: lat ?? 28.6562,
+    zoom: 15,
   });
 
-  if (!mapboxToken) {
+  if (!token) {
     return (
-      <div className="w-full h-full min-h-[300px] bg-primary/5 rounded-xl border border-border border-dashed flex flex-col items-center justify-center text-center p-6">
-        <MapPin className="text-muted mb-2" size={32} />
-        <p className="text-primary font-medium">Mapbox Token Required</p>
-        <p className="text-sm text-muted mt-1">Add VITE_MAPBOX_TOKEN to your .env file to render the map.</p>
+      <div className="w-full h-full min-h-[280px] bg-surface-2 rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center p-6 gap-3">
+        <div className="w-12 h-12 bg-warning-light rounded-full flex items-center justify-center">
+          <AlertCircle size={24} className="text-warning" />
+        </div>
+        <div>
+          <p className="font-semibold text-primary text-sm">Mapbox Token Required</p>
+          <p className="text-xs text-muted mt-1">Add <code className="font-mono text-accent bg-accent/10 px-1 rounded">VITE_MAPBOX_TOKEN</code> to your .env file</p>
+        </div>
+        <div className="bg-surface border border-border rounded-xl px-4 py-2 text-xs font-mono text-muted">
+          Lat: {lat?.toFixed(4)}, Lng: {lng?.toFixed(4)}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full min-h-[300px] rounded-xl overflow-hidden border border-border relative">
-      <Map
-        {...viewState}
-        onMove={(evt: any) => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/light-v11" // Clean, light aesthetic
-        mapboxAccessToken={mapboxToken}
-      >
-        <NavigationControl position="bottom-right" />
-        
-        {/* Main Store Marker */}
-        <Marker longitude={lng} latitude={lat} anchor="bottom">
-          <div className="bg-primary text-surface p-2 rounded-full shadow-aesthetic animate-bounce">
-            <Store size={20} />
-          </div>
-        </Marker>
+    <div className="card overflow-hidden">
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted uppercase tracking-widest">Store Location</p>
+        <span className="text-xs font-mono text-muted bg-surface-2 px-2 py-1 rounded border border-border">
+          {lat?.toFixed(4)}, {lng?.toFixed(4)}
+        </span>
+      </div>
+      <div className="relative h-64">
+        <Map
+          {...viewState}
+          onMove={(evt) => setViewState(evt.viewState)}
+          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapboxAccessToken={token}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <NavigationControl position="bottom-right" />
 
-        {/* Mock Competitor Marker (Just for visual flair in demo) */}
-        <Marker longitude={lng + 0.002} latitude={lat + 0.001} anchor="bottom">
-          <div className="bg-danger/10 text-danger p-1.5 rounded-full border border-danger/20">
-            <Store size={14} />
-          </div>
-        </Marker>
-      </Map>
+          {/* Main store marker */}
+          <Marker longitude={lng} latitude={lat} anchor="bottom">
+            <div className="bg-accent text-white p-2 rounded-xl shadow-glow-accent hover:scale-110 transition-transform cursor-pointer">
+              <Store size={18} strokeWidth={2.5} />
+            </div>
+          </Marker>
+        </Map>
 
-      {/* Overlay Badge */}
-      <div className="absolute top-4 left-4 bg-surface/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-border shadow-sm">
-        <p className="text-xs font-semibold text-primary">Catchment Radius: 500m</p>
+        {/* Overlay */}
+        <div className="absolute top-3 left-3 bg-surface/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-border shadow-card">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 bg-accent rounded-full animate-pulse-slow" />
+            <p className="text-xs font-semibold text-primary">
+              {storeName ?? 'Assessment Location'}
+            </p>
+          </div>
+          <p className="text-[10px] text-muted">500m catchment analysed</p>
+        </div>
       </div>
     </div>
   );
